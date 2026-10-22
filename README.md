@@ -1,7 +1,8 @@
-# 🧭 DocLens: Advanced Multimodal Engineering Document Intelligence
+# 🧭 DocuMind AI: Advanced Multimodal Engineering Document Intelligence
 
 > **An Evidence-Grounded Multimodal Retrieval-Augmented Generation (RAG) Framework for Complex Technical Manuals, Schematics, and Operational Compliance**
 
+[![GitHub Repository](https://img.shields.io/badge/GitHub-DocuMind--AI-181717.svg?logo=github)](https://github.com/Yash913212/DocuMind-AI.git)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 19](https://img.shields.io/badge/Frontend-React%2019-61DAFB.svg)](https://react.dev/)
@@ -10,44 +11,48 @@
 [![Ollama](https://img.shields.io/badge/Local%20Inference-Ollama-white.svg)](https://ollama.ai/)
 [![NLP Pipeline](https://img.shields.io/badge/NLP%20Pipeline-SentenceTransformers%20%7C%20Hybrid%20RRF-8A2BE2.svg)](#-natural-language-processing-nlp-pipeline--architecture)
 
-DocLens is an enterprise-grade multimodal document intelligence platform designed specifically for complex engineering manuals, industrial equipment documentation, Piping & Instrumentation Diagrams (P&IDs), technical specifications, and schematics.
+DocuMind AI is an enterprise-grade multimodal document intelligence platform designed specifically for complex engineering manuals, industrial equipment documentation, Piping & Instrumentation Diagrams (P&IDs), technical specifications, and schematics.
 
-Unlike conventional Retrieval-Augmented Generation (RAG) pipelines that strip layout geometry and convert documents into unstructured text chunks, DocLens preserves document hierarchy, extracts tabular data as structured grids, analyzes engineering diagrams, detects changes between document revisions, and constructs interactive 3D visualizations—including both a **3D Engineering Knowledge Graph** and a **3D Semantic Embedding Atlas**—backed by verified page-level citations.
+Unlike conventional Retrieval-Augmented Generation (RAG) pipelines that strip layout geometry and convert documents into unstructured text chunks, DocuMind AI preserves document hierarchy, extracts tabular data as structured grids, analyzes engineering diagrams, detects changes between document revisions, maintains multi-session conversation histories with cross-session analytical summarization, and constructs interactive 3D visualizations—including both a **3D Engineering Knowledge Graph** and a **3D Semantic Embedding Atlas**—backed by verified page-level citations.
 
 ---
 
 ## 📑 Table of Contents
 1. [Problem Statement & Motivation](#-problem-statement--motivation)
 2. [Core Capabilities Overview](#-core-capabilities-overview)
-3. [Interactive 3D Visual Maps & Representations](#-interactive-3d-visual-maps--representations)
+3. [Persistent Multi-Session Chat & History Drawer](#-persistent-multi-session-chat--history-drawer)
+4. [Executive Multi-Conversation Intelligence Summarizer](#-executive-multi-conversation-intelligence-summarizer)
+5. [Interactive 3D Visual Maps & Representations](#-interactive-3d-visual-maps--representations)
    - [Map A: 3D Engineering Knowledge Graph (Force-Directed Entity Network)](#map-a-interactive-3d-engineering-knowledge-graph)
    - [Map B: 3D Semantic Embedding Atlas (PCA & K-Means Latent Space)](#map-b-3d-semantic-embedding-atlas)
    - [Comparative Map: Latent Clustering vs. Relational Graph](#comparative-map-latent-clustering-vs-relational-graph)
-4. [Document Version Comparison & Change Detection](#-document-version-comparison--change-detection)
-5. [Operational Modes: Normal vs. Private](#-operational-modes-normal-vs-private)
-6. [System Architecture & Data Flow Maps](#-system-architecture--data-flow-maps)
+6. [Document Version Comparison & Change Detection](#-document-version-comparison--change-detection)
+7. [Operational Modes: Normal vs. Private](#-operational-modes-normal-vs-private)
+   - [Air-Gapped Vault Transition Animation (Privacy HUD)](#air-gapped-vault-transition-animation-privacy-hud)
+8. [Apple Design System & Fluid Motion Aesthetics](#-apple-design-system--fluid-motion-aesthetics)
+9. [System Architecture & Data Flow Maps](#-system-architecture--data-flow-maps)
    - [End-to-End System Architecture](#1-end-to-end-system-architecture)
    - [Page-Aware Multimodal PDF Ingestion Pipeline](#2-page-aware-multimodal-pdf-ingestion-pipeline)
    - [Hybrid Intent-Aware Retrieval & Fusion Engine](#3-hybrid-intent-aware-retrieval--fusion-engine)
    - [Document Revision Alignment & Diff Pipeline](#4-document-revision-alignment--diff-pipeline)
    - [Dual Operating Mode Security Boundary](#5-dual-operating-mode-security-boundary)
-7. [Natural Language Processing (NLP) Pipeline & Architecture](#-natural-language-processing-nlp-pipeline--architecture)
-   - [NLP Subsystem Overview & End-to-End Flow](#1-nlp-subsystem-overview--end-to-end-flow)
-   - [Boundary-Aware Tokenization & Semantic Chunking](#2-boundary-aware-tokenization--semantic-chunking)
-   - [Dense Semantic Embeddings & Latent Space Geometry](#3-dense-semantic-embeddings--latent-space-geometry)
-   - [Sparse Lexical Search (BM25) & Reciprocal Rank Fusion (RRF)](#4-sparse-lexical-search-bm25--reciprocal-rank-fusion-rrf)
-   - [Linguistic Intent Classification & Adaptive Prompt Steering](#5-linguistic-intent-classification--adaptive-prompt-steering)
-   - [Named Entity Recognition (NER) & Relation Extraction (RE)](#6-named-entity-recognition-ner--relation-extraction-re)
-   - [Evidence-Grounded Prompt Engineering & Hallucination Mitigation](#7-evidence-grounded-prompt-engineering--hallucination-mitigation)
-   - [Empirical NLP Quantitative Evaluation & Benchmarks](#8-empirical-nlp-quantitative-evaluation--benchmarks)
-8. [Technology Stack](#-technology-stack)
-9. [Research Contributions & Limitations](#-research-contributions--limitations)
-10. [Reproducible Evaluation & Testing Plan](#-reproducible-evaluation--testing-plan)
-11. [Quick Start & Local Setup](#-quick-start--local-setup)
-12. [Environment Configuration](#-environment-configuration)
-13. [Complete API Reference](#-complete-api-reference)
-14. [Repository File Structure](#-repository-file-structure)
-15. [Academic References](#-academic-references)
+10. [Natural Language Processing (NLP) Pipeline & Architecture](#-natural-language-processing-nlp-pipeline--architecture)
+    - [NLP Subsystem Overview & End-to-End Flow](#1-nlp-subsystem-overview--end-to-end-flow)
+    - [Boundary-Aware Tokenization & Semantic Chunking](#2-boundary-aware-tokenization--semantic-chunking)
+    - [Dense Semantic Embeddings & Latent Space Geometry](#3-dense-semantic-embeddings--latent-space-geometry)
+    - [Sparse Lexical Search (BM25) & Reciprocal Rank Fusion (RRF)](#4-sparse-lexical-search-bm25--reciprocal-rank-fusion-rrf)
+    - [Linguistic Intent Classification & Adaptive Prompt Steering](#5-linguistic-intent-classification--adaptive-prompt-steering)
+    - [Named Entity Recognition (NER) & Relation Extraction (RE)](#6-named-entity-recognition-ner--relation-extraction-re)
+    - [Evidence-Grounded Prompt Engineering & Hallucination Mitigation](#7-evidence-grounded-prompt-engineering--hallucination-mitigation)
+    - [Empirical NLP Quantitative Evaluation & Benchmarks](#8-empirical-nlp-quantitative-evaluation--benchmarks)
+11. [Technology Stack](#-technology-stack)
+12. [Research Contributions & Limitations](#-research-contributions--limitations)
+13. [Reproducible Evaluation & Testing Plan](#-reproducible-evaluation--testing-plan)
+14. [Quick Start & Local Setup](#-quick-start--local-setup)
+15. [Environment Configuration](#-environment-configuration)
+16. [Complete API Reference](#-complete-api-reference)
+17. [Repository File Structure](#-repository-file-structure)
+18. [Academic References](#-academic-references)
 
 ---
 
@@ -56,7 +61,7 @@ Unlike conventional Retrieval-Augmented Generation (RAG) pipelines that strip la
 Technical documentation in engineering, defense, and manufacturing domains presents unique structural challenges that traditional text-based RAG frameworks cannot address:
 
 ```
-  Traditional RAG Failure Modes                    DocLens Multimodal Solution
+  Traditional RAG Failure Modes                  DocuMind AI Multimodal Solution
  ┌───────────────────────────────┐               ┌───────────────────────────────┐
  │ PDF Flattening:               │               │ Page-Aware Ingestion:         │
  │ • Strips tables to raw text   │ ────────────► │ • Structured Markdown tables  │
@@ -84,7 +89,7 @@ Technical documentation in engineering, defense, and manufacturing domains prese
  └───────────────────────────────┘               └───────────────────────────────┘
 ```
 
-DocLens overcomes these limitations by maintaining layout geometry, verifying numerical tolerances, linking physical components to schematics, and providing audited air-gapped privacy.
+DocuMind AI overcomes these limitations by maintaining layout geometry, verifying numerical tolerances, linking physical components to schematics, and providing audited air-gapped privacy.
 
 ---
 
@@ -97,23 +102,114 @@ DocLens overcomes these limitations by maintaining layout geometry, verifying nu
 | **Diagram & Schematic Analysis** | **Implemented** | Evaluates technical drawings via local Ollama vision (`moondream:latest`) and Hugging Face API (`Llama-3.2-11B-Vision`). |
 | **Hybrid Intent-Aware Retrieval** | **Implemented** | Classifies queries (*factual*, *table*, *diagram*, *procedural*) and performs weighted fusion across text, table, and visual embeddings. |
 | **Verifiable Citations & Inspector** | **Implemented** | UI citation badges (`[1]`, `[2]`) categorized by element type (📊 Table, 🖼️ Figure, 👁️ Visual, 📝 Text) with page preview in an inspector drawer. |
+| **Persistent Multi-Session Chat** | **Implemented** | Client-side persistent session storage (`chatSessionStore.js`) with isolated session histories, real-time search, dynamic renaming, and state preservation. |
+| **Executive Cross-Session Summarizer** | **Implemented** | Comprehensive 3-tab multi-session intelligence synthesizer (`ConversationSummaryModal.jsx`) generating executive briefings, action checklists, and engineering parameters across all past chats. |
 | **Document Version Comparison** | **Implemented** | Side-by-side revision diffing detecting altered numerical limits, safety warnings, component IDs, and table ratings with dual citations. |
 | **Interactive 3D Knowledge Graph** | **Implemented** | 3D force-directed network connecting components, specifications, figures, warnings, and procedures with relationship traversal. |
 | **3D Semantic Embedding Atlas** | **Implemented** | Interactive Three.js point cloud projecting 384D MiniLM embeddings into 3D Cartesian coordinates via PCA and K-Means. |
 | **Dual Operating Modes (Normal / Private)** | **Implemented** | In-memory runtime switch between cloud-augmented hybrid inference and strictly air-gapped local execution. |
+| **Air-Gapped Vault Transition (HUD)** | **Implemented** | Immersive cybersecurity transition overlay (`PrivacyTransitionHUD.jsx`) with live encryption cipher stream, frequency waveform visualizer, and Web Audio sound telemetry. |
+| **Apple SF Pro Design System** | **Implemented** | Apple San Francisco typography, dark charcoal (`#2A2A2A`), moonlit silver (`#C0C0C0`), signal red (`#E10600`) palette, and fluid micro-animations (`index.css`). |
 | **AI Study & Testing Suite** | **Implemented** | Generates context-grounded multiple-choice quizzes and flashcards for operator training. |
 | **Multi-Hop Graph Agent Reasoning** | *Partially Implemented* | Library-wide search active; multi-step automated agent graph reasoning planned. |
 | **Automated SMT Solver Verification** | *Planned* | Formal theorem prover verification (Z3) for physical tolerance consistency. |
 
 ---
 
+## 💬 Persistent Multi-Session Chat & History Drawer
+
+DocuMind AI provides full persistent session management for technical engineering research, enabling users to maintain isolated multi-turn investigation threads across multiple manuals, schematics, and equipment models.
+
+```
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │                      Multi-Session Architecture Flow                        │
+ └──────────────────────────────────────┬──────────────────────────────────────┘
+                                        │
+           ┌────────────────────────────┴────────────────────────────┐
+           ▼                                                         ▼
+  ┌──────────────────────────────┐                          ┌──────────────────────────────┐
+  │  chatSessionStore.js Engine  │                          │ ConversationHistoryDrawer.jsx│
+  │  • localStorage persistence  │ ◄──────────────────────► │ • Slide-out drawer with blur │
+  │  • Chronological sorting     │                          │ • Real-time debounce search  │
+  │  • Dynamic title extraction  │                          │ • Inline session rename (✏️)  │
+  │  • Session deletion & clear  │                          │ • One-click "New Chat" (➕)   │
+  └──────────────────────────────┘                          └──────────────────────────────┘
+```
+
+### Storage Schema & State Lifecycle
+Every conversation session is stored as a structured document within the browser's persistent storage (`documind_chat_sessions_v1`), ensuring zero data loss during page reloads or mode toggles:
+
+```json
+{
+  "id": "session-1718900000000-a1b2",
+  "title": "Hydraulic Pump P1 Relief Valve Tolerances",
+  "createdAt": "2026-10-22T10:15:00.000Z",
+  "updatedAt": "2026-10-22T11:42:30.000Z",
+  "messages": [
+    { "role": "user", "content": "What is the cracking pressure of RV-101?" },
+    { "role": "assistant", "content": "According to Table 3.2 (Page 7)...", "citations": [...] }
+  ],
+  "metadata": {
+    "documentCount": 2,
+    "lastDocument": "Hydraulic_System_Manual_RevB.pdf",
+    "operatingMode": "private"
+  }
+}
+```
+
+### Key Drawer Capabilities
+* **Instant Session Switching**: Smoothly transitions between active investigation threads without re-fetching document context or dropping stream state.
+* **Live Debounced Search**: Fast, client-side fuzzy searching across session titles and embedded message contents.
+* **Inline Session Renaming**: Double-click or click the edit icon (✏️) to assign custom technical labels (e.g., *"SOP-14 Calibration QA"*).
+* **Cross-Session Analytics Trigger**: One-click launcher for the **Executive Multi-Conversation Intelligence Summarizer** modal directly from the drawer header.
+
+---
+
+## ⚡ Executive Multi-Conversation Intelligence Summarizer
+
+When conducting comprehensive engineering reviews across multiple equipment subsystems, information is frequently spread across several conversational threads. DocuMind AI incorporates an **Executive Multi-Conversation Intelligence Summarizer** (`rag-ui/src/components/ConversationSummaryModal.jsx` & `rag-ui/src/utils/chatSessionStore.js`) that analyzes all stored conversation histories to synthesize a unified executive briefing.
+
+```
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │                 Executive Multi-Session Intelligence Report                 │
+ └──────────────────────────────────────┬──────────────────────────────────────┘
+                                        │
+             ┌──────────────────────────┼──────────────────────────┐
+             ▼                          ▼                          ▼
+ ┌────────────────────────┐ ┌────────────────────────┐ ┌────────────────────────┐
+ │  Executive Synthesis   │ │   Action Items & SOPs  │ │  Specs & Safety Alerts │
+ │ • Cross-session brief  │ │ • Operational tasks    │ │ • Extracted numerical  │
+ │ • Key technical topics │ │ • Open questions       │ │   tolerances (bar, °C) │
+ │ • Document usage map   │ │ • Operator checklist   │ │ • Critical warnings    │
+ └────────────────────────┘ └────────────────────────┘ └────────────────────────┘
+```
+
+### 3-Tier Analytical Synthesis Report
+1. **Executive Synthesis (Overview)**:
+   - High-level executive briefing summarizing the core technical themes investigated across all sessions.
+   - Breakdown of primary document citations and equipment subsystems referenced.
+   - Cross-session engagement metrics: Total sessions analyzed, message count, and active operational mode.
+2. **Action Items & Operational Checklist**:
+   - Automatically identifies unresolved questions, pending maintenance procedures, and required operational verifications.
+   - Formatted as an actionable checklist for field technicians and lead engineers.
+3. **Engineering Parameters & Critical Alerts**:
+   - Synthesizes extracted numerical ratings, continuous voltages, pressure tolerances, and thermal limits into a consolidated reference table.
+   - Highlights critical safety warnings (`DANGER`, `WARNING`, `CAUTION`) with source document and page number citations.
+
+### Export & Workflow Integration
+* **Header KPI Bar**: Real-time counter displaying Total Sessions, Total Dialogue Turns, Extracted Technical Specs, and Safety Directives.
+* **One-Click Markdown Copy**: Copies the full formatted report to clipboard for immediate pasting into Jira, Confluence, or engineering shift logs.
+* **File Export**: Direct download of the executive report as a standalone `.md` document.
+
+---
+
 ## 🗺️ Interactive 3D Visual Maps & Representations
 
-DocLens features two distinct 3D visual representations powered by **Three.js**, **React Three Fiber**, and **WebGL**. A toggle in the Knowledge Map header allows instant switching between both paradigms.
+DocuMind AI features two distinct 3D visual representations powered by **Three.js**, **React Three Fiber**, and **WebGL**. A toggle in the Knowledge Map header allows instant switching between both paradigms.
 
 ```
        ┌─────────────────────────────────────────────────────────────┐
-       │               DocLens 3D Visualizations Header              │
+       │             DocuMind AI 3D Visualizations Header            │
        └──────────────────────────────┬──────────────────────────────┘
                                       │
                  ┌────────────────────┴────────────────────┐
@@ -277,11 +373,11 @@ Engineering manuals evolve over equipment lifecycles (*Rev A* ──► *Rev B*)
 
 ## 🔒 Operational Modes: Normal vs. Private
 
-DocLens implements an in-memory dual-mode architecture toggled instantaneously via the navigation rail, settings drawer, or the `POST /mode` endpoint without requiring server restarts or database re-indexing.
+DocuMind AI implements an in-memory dual-mode architecture toggled instantaneously via the navigation rail, settings drawer, or the `POST /mode` endpoint without requiring server restarts or database re-indexing.
 
 ```
                           ┌───────────────────────────┐
-                          │   DocLens Mode Selector   │
+                          │  DocuMind AI Mode Selector │
                           └─────────────┬─────────────┘
                                         │
                 ┌───────────────────────┴───────────────────────┐
@@ -311,6 +407,56 @@ DocLens implements an in-memory dual-mode architecture toggled instantaneously v
 | **Vector Storage** | Persistent local disk storage (`./data/chroma_db`) | Persistent local disk storage (`./data/chroma_db`) |
 | **Failure Policy** | Cloud fallback degradation on local error | **Fail-Closed**: Terminates with HTTP 500 error on local failure |
 | **Air-Gap Compliance** | Requires outbound internet access | **100% Air-Gapped Compliant** |
+
+### Air-Gapped Vault Transition Animation (Privacy HUD)
+
+Switching between public research mode and classified engineering mode requires absolute operator awareness. DocuMind AI implements an interactive, immersive cybernetic Heads-Up Display (HUD) overlay (`rag-ui/src/components/PrivacyTransitionHUD.jsx`) accompanied by real-time audio telemetry (`rag-ui/src/utils/audioHaptics.js`):
+
+```
+  Normal Mode (Hybrid Active)                   Air-Gapped Private Mode (Isolated)
+ ┌───────────────────────────┐                 ┌───────────────────────────┐
+ │ Outbound Egress: ENABLED  │                 │ Outbound Egress: 0.00 KB  │
+ │ Cloud Fallbacks: ACTIVE   │ ──────────────► │ Cloud Fallbacks: SEVERED  │
+ │ Web Search: AVAILABLE     │   Transition    │ Web Search: HARD-BLOCKED  │
+ └───────────────────────────┘   Telemetry     └───────────────────────────┘
+               │                                             ▲
+               └─────────► [Vault HUD Engagement] ───────────┘
+                           • Real-time SHA-256 cipher stream
+                           • Frequency waveform analyzer
+                           • Synthesized sub-bass haptic sound
+```
+
+* **Dynamic Cryptographic Stream**: Generates a live hexadecimal entropy stream mimicking the cryptographic lockdown of local vector embeddings and local inference buffers.
+* **Frequency Waveform Visualizer**: Real-time animated audio-frequency SVG bars providing visual confirmation of subsystem isolation.
+* **Synthesized Audio Telemetry**: Uses the browser's native **Web Audio API** (`AudioContext`) to generate low-frequency sub-bass hums, cybernetic engage chimes, and isolation lock sounds—requiring zero external audio file downloads.
+* **Graceful Motion Lifecycle**: Driven by Framer Motion `AnimatePresence` with backdrop blur (`backdrop-blur-md`), pulsating rings, and auto-dismiss upon verified backend mode commitment.
+
+---
+
+## 🎨 Apple Design System & Fluid Motion Aesthetics
+
+DocuMind AI is crafted according to modern Apple Human Interface Guidelines (HIG), combining minimalist elegance with high-density engineering data presentation.
+
+### 1. Typography Hierarchy
+DocuMind AI utilizes Apple's native San Francisco typography stack:
+```css
+font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", 
+             "Helvetica Neue", Helvetica, Arial, sans-serif;
+```
+* **Display Headlines**: SF Pro Display, tracking `-0.025em`, high-contrast moonlit silver (`#FFFFFF` to `#C0C0C0`).
+* **Body & Technical Copy**: SF Pro Text, optimized for micro-legibility at 13px–15px across complex engineering tables and schematics.
+* **Monospace Data Elements**: SF Mono / JetBrains Mono for alphanumeric part numbers, tolerances (`±0.05 mm`), and coordinates.
+
+### 2. Curated Color Architecture
+* ⬛ **Charcoal Canvas (`#2A2A2A` / `#1E1E1E` / `#121212`)**: Deep matte charcoal backgrounds eliminate glare while preserving contrast during extended maintenance shifts.
+* ⚪ **Moonlit Silver (`#C0C0C0` / `#A8A8A8`)**: Refined borders (`rgba(192, 192, 192, 0.15)`), muted secondary typography, and subtle card hover rings.
+* 🔴 **Signal Red (`#E10600`)**: Precision-focused accent color used for primary interactive buttons, safety hazard alerts, active knowledge graph highlights, and urgent spec changes.
+
+### 3. Fluid Motion & Micro-Animations
+* **Ambient Breathing Glow**: Custom CSS keyframes (`ambientBreathe`, `softGlowPulse`) impart subtle, biological rhythm to cards and status badges without causing visual distraction.
+* **Weightless Floating Elevation**: `lightFloat` physics smoothly levitate key metric cards.
+* **Sliding Layout Indicators**: Framer Motion `layoutId` enables seamless pill tab transitions (e.g., active summary tab slider, mode toggles).
+* **Tactile Spring Micro-Interactions**: Interactive elements feature spring-physics haptics (`whileHover={{ scale: 1.02 }}`, `whileTap={{ scale: 0.98 }}`).
 
 ---
 
@@ -481,7 +627,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph APP["DocLens Application Core"]
+    subgraph APP["DocuMind AI Application Core"]
         Request["Incoming Request (/chat, /upload, /compare)"]
         ModeCheck{"Check Mode: is_private_mode()"}
     end
@@ -525,7 +671,7 @@ flowchart TB
 
 ## 🧠 Natural Language Processing (NLP) Pipeline & Architecture
 
-Natural Language Processing (NLP) forms the cognitive foundation of DocLens. While generic RAG systems treat engineering documentation as arbitrary strings of unstructured natural text, DocLens implements a specialized NLP pipeline engineered explicitly for alphanumeric part numbers, high-density tabular matrices, tight numerical tolerance envelopes, and topological entity-relationship extraction.
+Natural Language Processing (NLP) forms the cognitive foundation of DocuMind AI. While generic RAG systems treat engineering documentation as arbitrary strings of unstructured natural text, DocuMind AI implements a specialized NLP pipeline engineered explicitly for alphanumeric part numbers, high-density tabular matrices, tight numerical tolerance envelopes, and topological entity-relationship extraction.
 
 ```
                   ┌──────────────────────────────────────────────────────────────┐
@@ -585,7 +731,7 @@ Natural Language Processing (NLP) forms the cognitive foundation of DocLens. Whi
 ```
 
 ### 1. NLP Subsystem Overview & End-to-End Flow
-The DocLens NLP subsystem operates across four interconnected tiers:
+The DocuMind AI NLP subsystem operates across four interconnected tiers:
 1. **Linguistic Ingestion & Preprocessing**: Extracts text streams from PDF manuals while preserving structural punctuation, tabular geometries, and bounding coordinate metadata.
 2. **Dual-Representation Hybrid Indexing**: Encodes semantic concept spaces through dense vector embeddings while preserving exact lexical alphanumeric identifiers through sparse inverted BM25 indices.
 3. **Intent Classification & Adaptive Routing**: Dynamically parses the linguistic intent of incoming engineering queries and steers retrieval weights to optimal context types (narrative text, tabular grids, or schematic diagrams).
@@ -594,7 +740,7 @@ The DocLens NLP subsystem operates across four interconnected tiers:
 ---
 
 ### 2. Boundary-Aware Tokenization & Semantic Chunking
-Conventional character-based chunking truncates critical technical specs (e.g., splitting `315` and `bar` across chunks, or severing table header rows from data cells). DocLens implements **boundary-aware semantic chunking**:
+Conventional character-based chunking truncates critical technical specs (e.g., splitting `315` and `bar` across chunks, or severing table header rows from data cells). DocuMind AI implements **boundary-aware semantic chunking**:
 
 * **Sliding Window Tokenization**: Dynamic window sizing ($C_{\text{size}} = 600$ to $1000$ tokens) with a sliding overlap ($\Delta_{\text{overlap}} = 100$ tokens) to guarantee contextual continuity across paragraph and section boundaries.
 * **Numerical & Unit Protection**: Regular expression lookaheads protect compound engineering values (e.g., `142 MPa (20.6 ksi)`, `400V AC ± 10%`, `3,750 RPM`, `-40°C to +85°C`) from split boundaries.
@@ -604,7 +750,7 @@ Conventional character-based chunking truncates critical technical specs (e.g., 
 ---
 
 ### 3. Dense Semantic Embeddings & Latent Space Geometry
-DocLens maps technical language into continuous high-dimensional vector spaces using transformer-based Sentence-BERT architectures:
+DocuMind AI maps technical language into continuous high-dimensional vector spaces using transformer-based Sentence-BERT architectures:
 
 * **Embedding Models**:
   * **Primary (Cloud/Production)**: `sentence-transformers/all-mpnet-base-v2` producing $768$-dimensional dense vectors optimized for semantic sentence similarity.
@@ -622,7 +768,7 @@ DocLens maps technical language into continuous high-dimensional vector spaces u
 ### 4. Sparse Lexical Search (BM25) & Reciprocal Rank Fusion (RRF)
 While dense vector representations capture semantic intent (e.g., understanding that "thermal limit" relates to "maximum operating temperature"), they notoriously struggle with exact alphanumeric engineering part numbers (e.g., distinguishing between `Relief Valve RV-101` and `Relief Valve RV-102`).
 
-DocLens resolves this via **Hybrid Dense-Sparse Fusion**:
+DocuMind AI resolves this via **Hybrid Dense-Sparse Fusion**:
 
 * **Okapi BM25 Lexical Scoring**:
   Queries and document chunks are tokenized with an inverted index. For query $Q$ with terms $q_1, \dots, q_n$ and document $D$:
@@ -631,7 +777,7 @@ DocLens resolves this via **Hybrid Dense-Sparse Fusion**:
   
   $$\text{IDF}(q_i) = \ln \left( \frac{N - n(q_i) + 0.5}{n(q_i) + 0.5} + 1 \right)$$
 * **Reciprocal Rank Fusion (RRF)**:
-  Rather than attempting linear score normalization across disparate metric scales, DocLens employs **Reciprocal Rank Fusion (RRF)** with constant $k = 60$:
+  Rather than attempting linear score normalization across disparate metric scales, DocuMind AI employs **Reciprocal Rank Fusion (RRF)** with constant $k = 60$:
   $$\text{RRF}(d) = \sum_{m \in M} \frac{1}{k + r_m(d)} = \frac{1}{60 + r_{\text{dense}}(d)} + \frac{1}{60 + r_{\text{bm25}}(d)}$$
   Where $r_{\text{dense}}(d)$ is the rank of document $d$ in dense vector retrieval, and $r_{\text{bm25}}(d)$ is the rank in sparse lexical retrieval. This guarantees that candidates ranking high in either dense semantic similarity OR exact alphanumeric match are prioritized.
 
@@ -650,7 +796,7 @@ Incoming user queries are parsed by an intent classifier (`backend/llm.py` and `
 ---
 
 ### 6. Named Entity Recognition (NER) & Relation Extraction (RE)
-DocLens incorporates a domain-specialized rule and neural extraction engine to automatically construct structured knowledge graphs directly from unstructured technical literature:
+DocuMind AI incorporates a domain-specialized rule and neural extraction engine to automatically construct structured knowledge graphs directly from unstructured technical literature:
 
 ```
   [Entity: Drive Motor M1]  ──(HAS_SPEC)──────►  [Entity: 400V AC ± 10%]
@@ -679,7 +825,7 @@ DocLens incorporates a domain-specialized rule and neural extraction engine to a
 ---
 
 ### 7. Evidence-Grounded Prompt Engineering & Hallucination Mitigation
-To ensure zero hallucination in critical engineering environments, DocLens injects retrieved context with rigorous syntactic boundary markers:
+To ensure zero hallucination in critical engineering environments, DocuMind AI injects retrieved context with rigorous syntactic boundary markers:
 
 ```markdown
 ## Core Rules
@@ -700,9 +846,9 @@ Table: High Temperature Tensile Data
 ---
 
 ### 8. Empirical NLP Quantitative Evaluation & Benchmarks
-DocLens was quantitatively benchmarked against a corpus of engineering specifications (including ASTM standards, turbine manuals, and hydraulic schematics) across standard NLP retrieval and generation metrics:
+DocuMind AI was quantitatively benchmarked against a corpus of engineering specifications (including ASTM standards, turbine manuals, and hydraulic schematics) across standard NLP retrieval and generation metrics:
 
-| Metric Category | Evaluation Benchmark Metric | Baseline Vanilla RAG | DocLens Multimodal NLP | Delta Improvement |
+| Metric Category | Evaluation Benchmark Metric | Baseline Vanilla RAG | DocuMind AI Multimodal NLP | Delta Improvement |
 |:---|:---|:---:|:---:|:---:|
 | **Factual Reliability** | **Faithfulness / Groundedness** (Ragas) | 71.3% | **99.4%** | **+28.1%** |
 | **Factual Reliability** | **Numerical Exact Match Precision** | 62.4% | **99.8%** | **+37.4%** |
@@ -751,9 +897,9 @@ DocLens was quantitatively benchmarked against a corpus of engineering specifica
 4. **Audited Runtime Privacy Architecture**: An in-memory dual-mode system providing verifiable fail-closed local execution without cloud data leakage.
 
 ### Limitations & Ongoing Work
-* **Lack of Native OCR-Free Visual Pretraining**: DocLens relies on PyMuPDF text/table extraction and modular vision models rather than end-to-end vision-only pretraining. Severely degraded scanned PDFs require high-accuracy OCR pre-processing.
+* **Lack of Native OCR-Free Visual Pretraining**: DocuMind AI relies on PyMuPDF text/table extraction and modular vision models rather than end-to-end vision-only pretraining. Severely degraded scanned PDFs require high-accuracy OCR pre-processing.
 * **Scale of Entity Extraction**: Knowledge graph generation over very large documents (>200 pages) requires batching and asynchronous processing to manage local LLM latency.
-* **Formal Solver Verification**: While DocLens constrains prompt outputs and verifies numbers using regex, integration with automated SMT solvers (e.g., Z3) for mathematical consistency proof remains planned.
+* **Formal Solver Verification**: While DocuMind AI constrains prompt outputs and verifies numbers using regex, integration with automated SMT solvers (e.g., Z3) for mathematical consistency proof remains planned.
 
 ---
 
@@ -797,8 +943,8 @@ ollama pull moondream:latest
 ### 3. Backend Setup
 ```bash
 # Clone the repository
-git clone https://github.com/Yash913212/Rag-Project.git
-cd Rag-Project
+git clone https://github.com/Yash913212/DocuMind-AI.git
+cd DocuMind-AI
 
 # Create and activate virtual environment
 python3 -m venv venv
@@ -823,7 +969,7 @@ npm install --legacy-peer-deps
 # Start Vite development server
 npm run dev
 ```
-Open your browser at `http://localhost:5173` to explore DocLens.
+Open your browser at `http://localhost:5173` to explore DocuMind AI.
 
 ---
 
@@ -886,7 +1032,7 @@ ENABLE_TECHNICAL_MODE=true
 ## 📁 Repository File Structure
 
 ```
-Rag-Project/
+DocuMind-AI/
 ├── api.py                           # FastAPI application endpoints and lifecycle
 ├── requirements.txt                 # Python dependencies
 ├── .env                             # Environment configuration (git-ignored)
@@ -915,15 +1061,23 @@ Rag-Project/
 │   ├── vite.config.js               # Vite bundler configuration
 │   └── src/
 │       ├── App.jsx                  # Main application router and section layout
-│       ├── index.css                # Global styling and design token variables
+│       ├── index.css                # Global styling, Apple SF typography, & keyframe animations
 │       ├── components/
 │       │   ├── Rail.jsx             # Left navigation rail with quick mode toggle
 │       │   ├── Inspector.jsx        # Slide-over citation & page preview drawer
-│       │   ├── InteractiveNLPLab.jsx # Interactive NLP intelligence sandbox
-│       │   ├── InteractiveRAGSimulator.jsx # Live RAG execution pipeline simulator
+│       │   ├── ConversationHistoryDrawer.jsx # Multi-session persistent chat history drawer
+│       │   ├── ConversationSummaryModal.jsx  # Executive 3-tier multi-conversation intelligence summarizer
+│       │   ├── PrivacyTransitionHUD.jsx      # Air-gapped vault cybersecurity transition HUD modal
+│       │   ├── CinematicFX.jsx      # Ambient visual noise & background cinematics
+│       │   ├── ParticleNeuralGlobe.jsx       # Three.js interactive neural particle canvas
+│       │   ├── InteractiveNLPLab.jsx         # Interactive NLP intelligence sandbox
+│       │   ├── InteractiveRAGSimulator.jsx   # Live RAG execution pipeline simulator
 │       │   ├── InteractiveRevisionDiffPreview.jsx # Spec drift comparator preview
 │       │   ├── CommandPalette.jsx   # ⌘K quick launcher and navigation
 │       │   └── ThemeSettings.jsx    # Settings drawer with privacy engine controls
+│       ├── utils/
+│       │   ├── chatSessionStore.js  # LocalStorage multi-session persistence & analytics engine
+│       │   └── audioHaptics.js      # Synthesized Web Audio API sound telemetry
 │       ├── pages/
 │       │   ├── Landing.jsx          # Interactive hero landing page
 │       │   ├── Chat.jsx             # Streaming conversation with citation chips
