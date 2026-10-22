@@ -53,7 +53,7 @@ export function Inspector({ isOpen, onClose, content }) {
             </div>
 
             <div className="p-6 border-t border-fog/10 bg-ink/30">
-              <button className="w-full py-3 bg-brass text-ink rounded-lg font-ui-label hover:bg-parchment transition-colors">
+              <button className="btn-signal w-full py-3 rounded-xl font-ui-label text-white text-xs uppercase tracking-wider font-semibold shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all">
                 Open in PDF Viewer
               </button>
             </div>

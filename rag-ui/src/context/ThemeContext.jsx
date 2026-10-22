@@ -8,7 +8,8 @@ export function ThemeProvider({ children }) {
   });
 
   const [accent, setAccent] = useState(() => {
-    return localStorage.getItem("themeAccent") || "brass";
+    const storedAccent = localStorage.getItem("themeAccent");
+    return ["red", "silver"].includes(storedAccent) ? storedAccent : "red";
   });
 
   useEffect(() => {

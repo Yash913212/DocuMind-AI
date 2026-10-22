@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Moon, Sun, Check, User, Database, Layers } from "lucide-react";
+import { Moon, Sun, Check, User, Database, Layers, Globe, Lock } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { useUI } from "../context/UIContext";
 import { API_BASE } from "../config";
 
 export function ThemeSettings({ isOpen, onClose }) {
   const { themeMode, setThemeMode, accent, setAccent } = useTheme();
+  const { privacyMode, setPrivacyMode, isModeLoading } = useUI();
   const [stats, setStats] = useState({ docs: 0, chunks: 0 });
 
   useEffect(() => {
@@ -29,10 +31,8 @@ export function ThemeSettings({ isOpen, onClose }) {
   }, [isOpen]);
 
   const accents = [
-    { id: "brass", name: "Brass", color: "bg-[#C08A3E]" },
-    { id: "rust", name: "Rust", color: "bg-[#B0503A]" },
-    { id: "moss", name: "Moss", color: "bg-[#4C7A63]" },
-    { id: "indigo", name: "Indigo", color: "bg-[#263352]" },
+    { id: "red", name: "Signal Red", color: "bg-[#E10600]" },
+    { id: "silver", name: "Silver", color: "bg-[#C0C0C0]" },
   ];
 
   return (
@@ -50,11 +50,11 @@ export function ThemeSettings({ isOpen, onClose }) {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed bottom-24 left-4 sm:bottom-4 sm:left-20 z-50 w-64 bg-indigo text-parchment p-6 rounded-xl border border-brass/20 shadow-2xl"
+            className="fixed bottom-24 left-4 sm:bottom-4 sm:left-20 z-50 w-72 bg-indigo text-parchment p-6 rounded-xl border border-brass/20 shadow-2xl"
           >
             <h3 className="font-hero text-xl text-brass mb-4">Settings</h3>
 
-            <div className="mb-6 bg-ink/50 p-4 rounded-xl border border-fog/10">
+            <div className="mb-5 bg-ink/50 p-4 rounded-xl border border-fog/10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-brass/20 flex items-center justify-center text-brass">
                   <User size={20} />
@@ -78,47 +78,103 @@ export function ThemeSettings({ isOpen, onClose }) {
               </div>
             </div>
 
-            <div className="mb-6">
-              <div className="font-ui-label text-xs uppercase tracking-widest text-fog mb-3">
-                Mode
+            {/* Privacy Mode Toggle */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-ui-label text-xs uppercase tracking-widest text-fog">
+                  Engine Mode
+                </div>
+                {isModeLoading && (
+                  <span className="text-[10px] text-brass animate-pulse">Switching...</span>
+                )}
               </div>
-              <div className="flex bg-ink p-1 rounded-lg">
+              <div className="flex bg-ink p-1 rounded-lg mb-2 border border-fog/10 relative">
                 <button
-                  onClick={() => setThemeMode("light")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md font-ui-label transition-colors ${
-                    themeMode === "light"
-                      ? "bg-indigo text-brass shadow"
+                  onClick={() => setPrivacyMode("normal")}
+                  disabled={isModeLoading}
+                  className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors z-10 cursor-pointer ${
+                    privacyMode === "normal"
+                      ? "text-parchment font-semibold"
                       : "text-fog hover:text-parchment"
                   }`}
                 >
-                  <Sun size={16} /> Light
+                  {privacyMode === "normal" && (
+                    <motion.div
+                      layoutId="privacyModePill"
+                      className="absolute inset-0 bg-indigo rounded-md border border-fog/30 shadow -z-10"
+                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                    />
+                  )}
+                  <Globe size={13} /> Normal
+                </button>
+                <button
+                  onClick={() => setPrivacyMode("private")}
+                  disabled={isModeLoading}
+                  className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors z-10 cursor-pointer ${
+                    privacyMode === "private"
+                      ? "text-white font-semibold"
+                      : "text-fog hover:text-parchment"
+                  }`}
+                >
+                  {privacyMode === "private" && (
+                    <motion.div
+                      layoutId="privacyModePill"
+                      className="absolute inset-0 bg-[#e10600] rounded-md border border-[#ff453a]/40 shadow-lg shadow-[#e10600]/30 -z-10"
+                      transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                    />
+                  )}
+                  <Lock size={13} /> Private
+                </button>
+              </div>
+              <p className="text-[10px] text-fog/80 leading-relaxed">
+                {privacyMode === "private"
+                  ? "🔒 Local-first: prefers Ollama + local vector DB. Web search disabled; Groq fallback only if Ollama is unavailable."
+                  : "🌐 Normal: Multimodal RAG with cloud fallback chains & web augmentation."}
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <div className="font-ui-label text-xs uppercase tracking-widest text-fog mb-3">
+                Palette & Appearance
+              </div>
+              <div className="flex bg-ink p-1 rounded-lg border border-fog/10">
+                <button
+                  onClick={() => setThemeMode("light")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors ${
+                    themeMode === "light"
+                      ? "bg-indigo text-brass shadow border border-brass/30 font-semibold"
+                      : "text-fog hover:text-parchment"
+                  }`}
+                >
+                  <Sun size={15} /> Moonlit Silver
                 </button>
                 <button
                   onClick={() => setThemeMode("dark")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md font-ui-label transition-colors ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors ${
                     themeMode === "dark"
-                      ? "bg-indigo text-brass shadow"
+                      ? "bg-indigo text-brass shadow border border-brass/30 font-semibold"
                       : "text-fog hover:text-parchment"
                   }`}
                 >
-                  <Moon size={16} /> Dark
+                  <Moon size={15} /> Charcoal Noir
                 </button>
               </div>
             </div>
 
             <div>
               <div className="font-ui-label text-xs uppercase tracking-widest text-fog mb-3">
-                Accent Color
+                Precision Accent Color
               </div>
-              <div className="flex justify-between">
+              <div className="flex items-center gap-3">
                 {accents.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setAccent(item.id)}
-                    className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-ink hover:bg-ink/80 transition-colors"
+                    className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-ink hover:bg-ink/80 transition-colors border border-fog/15"
+                    title={item.name}
                   >
                     <div
-                      className={`w-6 h-6 rounded-full ${item.color} flex items-center justify-center transition-transform group-hover:scale-110`}
+                      className={`w-6 h-6 rounded-full ${item.color} flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm`}
                     >
                       {accent === item.id && (
                         <Check size={14} className="text-white" />

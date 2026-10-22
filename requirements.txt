@@ -13,5 +13,10 @@ langchain-huggingface
 langchain-classic
 numpy
 scikit-learn
-ddgs
+duckduckgo-search
+langchain-chroma
+langchain-ollama
 huggingface_hub
+sentence-transformers
+pymupdf
+Pillow

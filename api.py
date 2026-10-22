@@ -1,115 +1,96 @@
+"""
+Multimodal RAG API — FastAPI application.
+
+Preserves all original endpoints and adds new multimodal capabilities:
+- Page-aware PDF processing with table/figure extraction
+- Hybrid retrieval (text + table + visual)
+- Technical manual mode with structured citations
+- Enhanced document library with processing metadata
+
+Original endpoints preserved:
+  POST /chat, POST /upload, GET /documents, DELETE /documents/{name},
+  GET /files/{name}, GET /search, POST /quiz, GET /map,
+  POST /clear, GET /health
+"""
+
 import asyncio
-import base64
+import datetime
 import json
+import logging
 import os
 import re
-import urllib.request
+import uuid
 from contextlib import asynccontextmanager
+from typing import Optional
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from typing import Any, Dict, List, Optional
-
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
-from huggingface_hub import InferenceClient
-from langchain_community.vectorstores import SupabaseVectorStore
-from supabase import create_client, Client
-from langchain_classic.chains.combine_documents import \
-    create_stuff_documents_chain
-from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
-from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pydantic import BaseModel
 
-DATA_DIR = os.environ.get("DATA_DIR", "./data")
-os.makedirs(DATA_DIR, exist_ok=True)
+from backend.config import (
+    CORS_ORIGINS,
+    DATA_DIR,
+    MAX_UPLOAD_MB,
+    RETRIEVAL_K,
+    ENABLE_TECHNICAL_MODE,
+    PAGE_IMAGES_DIR,
+    get_privacy_mode,
+    set_privacy_mode,
+    is_private_mode,
+)
+from backend.database import db_manager
+from backend.llm import (
+    create_qa_chain,
+    create_llm_instance,
+    classify_query_type,
+    format_context_for_technical_prompt,
+)
+from backend.models import (
+    ChatRequest,
+    ChatMessage,
+    QuizRequest,
+    TechnicalQueryRequest,
+    ModeRequest,
+    CompareRequest,
+    CompareResult,
+    NLPAnalyzeRequest,
+    NLPAnalyzeResponse,
+)
+from backend.ingestion.processor import process_document, sse
+from backend.retrieval.hybrid import hybrid_retriever
+from backend.comparison import compare_documents
+from backend.knowledge_graph import generate_knowledge_graph, clear_knowledge_graph_cache
+from backend.nlp import analyze_nlp_query
 
-MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "50"))
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
-RETRIEVAL_K = 5
+# ── Logging ──
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
-
-_keep_alive = os.environ.get("MODEL_KEEP_ALIVE", "0")
-try:
-    MODEL_KEEP_ALIVE = int(_keep_alive)
-except ValueError:
-    MODEL_KEEP_ALIVE = _keep_alive
-
-supabase_client: Client = None
-vectorstore = None
-qa_chain = None  # just the LLM answer chain (no retriever bundled)
-llm_instance = None  # kept for reference
+# ── Global State ──
+qa_chain = None
+qa_chain_technical = None
+llm_instance = None
 upload_lock = asyncio.Lock()
 
 
-
-
 def init_rag_pipeline():
-    global vectorstore, qa_chain, llm_instance, supabase_client
-    print("Initializing RAG pipeline (Supabase)...")
+    """Initialize RAG pipeline components."""
+    global qa_chain, qa_chain_technical, llm_instance
+    logger.info("Initializing RAG pipeline...")
 
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise ValueError("SUPABASE_URL and SUPABASE_SECRET_KEY environment variables are missing.")
+    # Initialize database
+    db_manager.initialize()
 
-    supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    # Create LLM chains
+    qa_chain, llm_instance = create_qa_chain(technical_mode=False)
+    qa_chain_technical, _ = create_qa_chain(technical_mode=True)
 
-    embedding = HuggingFaceEndpointEmbeddings(
-        huggingfacehub_api_token=HF_TOKEN,
-        model="sentence-transformers/all-mpnet-base-v2"
-    )
-    
-    vectorstore = SupabaseVectorStore(
-        client=supabase_client,
-        embedding=embedding,
-        table_name="documents",
-        query_name="match_documents"
-    )
-
-    primary_llm = ChatGroq(
-        model="llama-3.1-70b-versatile",
-        api_key=GROQ_API_KEY
-    )
-    fallback_llm = ChatOpenAI(
-        model="openai/gpt-4o-mini",
-        api_key=OPENROUTER_API_KEY,
-        base_url="https://openrouter.ai/api/v1"
-    )
-    llm_instance = primary_llm.with_fallbacks([fallback_llm])
-    system_prompt = (
-        "You are an AI assistant designed for advanced question-answering. "
-        "Use the retrieved context to provide the most accurate and optimal answer. "
-        "CRITICAL INSTRUCTION FOR FORMATTING: Do NOT default to using tables. You must dynamically generate the structure of your response based solely on the content and the user's request. "
-        "Use paragraphs for narratives, bullet points for summaries, and numbered lists for steps. ONLY use a table if the user explicitly asks for one or if the data is strictly comparative with complete data for all columns (never create columns with null or empty '—' values). "
-        "Include relevant emojis to make it visually appealing. "
-        "If you don't know the answer, just say that you don't know.\n\n"
-        "Context:\n{context}"
-    )
-
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", system_prompt),
-            MessagesPlaceholder(variable_name="history"),
-            ("human", "{input}"),
-        ]
-    )
-
-    qa_chain = create_stuff_documents_chain(llm_instance, prompt)
-    print("RAG pipeline initialized.")
+    logger.info("RAG pipeline initialized.")
 
 
 @asynccontextmanager
@@ -117,32 +98,27 @@ async def lifespan(app: FastAPI):
     try:
         await asyncio.to_thread(init_rag_pipeline)
     except Exception as exc:
-        print(f"RAG pipeline not ready at startup: {exc}")
+        logger.error(f"RAG pipeline not ready at startup: {exc}")
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Multimodal RAG for Technical Manuals",
+    description="A multimodal retrieval-augmented generation system for complex technical documentation.",
+    version="2.0.0",
+    lifespan=lifespan,
+)
 
-cors_origins = [
-    o.strip()
-    for o in os.environ.get(
-        "CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    ).split(",")
-    if o.strip()
-]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-def sse(data: dict) -> str:
-    return f"data: {json.dumps(data)}\n\n"
-
+# ── Utility Functions ──
 
 def secure_filename(name: str) -> str:
     name = os.path.basename(name.replace("\\", "/"))
@@ -158,65 +134,108 @@ async def ensure_rag_ready():
         except Exception as exc:
             raise HTTPException(
                 status_code=503,
-                detail=f"RAG pipeline unavailable (is Ollama running?). {exc}",
+                detail=f"RAG pipeline unavailable. {exc}",
             )
+
+
+# ═══════════════════════════════════════════════════════════════
+# EXISTING ENDPOINTS (preserved with enhancements)
+# ═══════════════════════════════════════════════════════════════
+
+
+@app.get("/health")
+async def health():
+    from backend.llm import _is_ollama_available
+    return {
+        "status": "ok" if qa_chain is not None else "degraded",
+        "rag_initialized": qa_chain is not None,
+        "technical_mode_available": ENABLE_TECHNICAL_MODE,
+        "ollama_available": _is_ollama_available(),
+        "privacy_mode": get_privacy_mode(),
+        "version": "2.0.0",
+    }
 
 
 @app.post("/clear")
 async def clear_db():
-    global supabase_client
     await ensure_rag_ready()
     try:
-        if supabase_client:
-            # Delete all records from documents table
-            supabase_client.table("documents").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+        db_manager.clear_all()
 
         for filename in os.listdir(DATA_DIR):
             file_path = os.path.join(DATA_DIR, filename)
             if os.path.isfile(file_path):
                 os.remove(file_path)
 
+        # Clean page images and extracted images
+        for subdir in [PAGE_IMAGES_DIR, os.path.join(DATA_DIR, "extracted_images")]:
+            if os.path.isdir(subdir):
+                for f in os.listdir(subdir):
+                    fp = os.path.join(subdir, f)
+                    if os.path.isfile(fp):
+                        os.remove(fp)
+
+        clear_knowledge_graph_cache()
         return {"status": "cleared"}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@app.get("/health")
-async def health():
-    return {
-        "status": "ok" if qa_chain is not None else "degraded",
-        "rag_initialized": qa_chain is not None,
-    }
-
-
-class ChatMessage(BaseModel):
-    role: str
-    content: str
-
-
-class ChatRequest(BaseModel):
-    query: str
-    document: Optional[str] = None
-    history: Optional[List[ChatMessage]] = None
-
-
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    global qa_chain, vectorstore
+    """
+    Chat endpoint with optional technical mode.
+    When technical_mode=True, uses hybrid retrieval and technical prompts.
+    """
+    global qa_chain, qa_chain_technical, llm_instance
     await ensure_rag_ready()
 
-    # ── Step 1: Retrieval (loads embedding model into VRAM) ──
-    search_kwargs = {"k": RETRIEVAL_K}
-    if request.document:
-        doc_path = os.path.join(DATA_DIR, secure_filename(request.document))
-        search_kwargs["filter"] = {"source": doc_path}
+    # Determine which chain to use
+    use_technical = request.technical_mode or ENABLE_TECHNICAL_MODE
+    chain = qa_chain_technical if use_technical else qa_chain
 
+    # ── Step 1: Query Classification (for technical mode) ──
+    query_type = "factual"
+    if use_technical:
+        try:
+            query_type = await asyncio.to_thread(
+                classify_query_type, request.query, llm_instance
+            )
+            logger.info(f"Query classified as: {query_type}")
+        except Exception as e:
+            logger.warning(f"Query classification failed: {e}")
+
+    # ── Step 2: Hybrid Retrieval ──
+    if use_technical:
+        docs_with_scores = await hybrid_retriever.retrieve(
+            query=request.query,
+            document=request.document,
+            query_type=query_type,
+            technical_mode=True,
+        )
+    else:
+        # Original retrieval path
+        search_kwargs = {"k": RETRIEVAL_K}
+        if request.document:
+            doc_path = os.path.join(DATA_DIR, secure_filename(request.document))
+            search_kwargs["filter"] = {"source": doc_path}
+
+        docs_with_scores = await asyncio.to_thread(
+            db_manager.similarity_search,
+            request.query,
+            **search_kwargs,
+        )
+
+    # ── Step 3: Web search augmentation (disabled in private mode) ──
     async def fetch_web_search():
+        if is_private_mode():
+            logger.info("Private mode enabled: skipping external web search.")
+            return []
         def _search():
             try:
                 results = DDGS().text(request.query, max_results=3)
                 docs = []
-                for idx, r in enumerate(results):
+                for r in results:
                     docs.append(
                         Document(
                             page_content=r.get("body", ""),
@@ -225,49 +244,80 @@ async def chat(request: ChatRequest):
                     )
                 return docs
             except Exception as e:
-                print(f"Web search error: {e}")
+                logger.warning(f"Web search error: {e}")
                 return []
-
         return await asyncio.to_thread(_search)
 
-    docs_task = asyncio.to_thread(
-        vectorstore.similarity_search_with_relevance_scores, request.query, **search_kwargs
-    )
-    web_task = fetch_web_search()
+    web_docs = await fetch_web_search()
 
-    docs_with_scores, web_docs = await asyncio.gather(docs_task, web_task)
-
+    # Build context documents
     context_docs = [doc for doc, _score in docs_with_scores]
     context_docs.extend(web_docs)
 
     score_map = {doc.page_content: score for doc, score in docs_with_scores}
     for w_doc in web_docs:
-        score_map[w_doc.page_content] = 0.9
+        # Web results have no vector relevance score; do not invent one.
+        score_map[w_doc.page_content] = 0.0
 
-    # Build source metadata for SSE
+    # ── Step 4: Build source metadata ──
     sources = []
     for idx, doc in enumerate(context_docs):
         source_metadata = doc.metadata
         page = source_metadata.get("page", 0)
         source_name = source_metadata.get("source", "Unknown")
-        filename = os.path.basename(source_name)
-        page_str = f"Page {page + 1} ({filename})" if page >= 0 else source_name
+        filename_src = os.path.basename(source_name)
+        chunk_type = source_metadata.get("chunk_type", "text")
 
-        raw_score = score_map.get(doc.page_content, 0.5)
-        confidence = max(0.0, min(1.0, raw_score))
+        # Enhanced page string with type info
+        if page >= 0 if isinstance(page, int) else False:
+            page_str = f"Page {page + 1} ({filename_src})"
+        else:
+            page_str = source_name
 
-        sources.append(
-            {
-                "id": idx + 1,
-                "text": doc.page_content,
-                "page": page_str,
-                "score": confidence,
-            }
+        raw_score = score_map.get(doc.page_content, 0.0)
+        confidence = max(0.0, min(1.0, float(raw_score)))
+
+        source_entry = {
+            "id": idx + 1,
+            "text": doc.page_content[:500],  # Limit preview
+            "page": page_str,
+            "score": confidence,
+            "chunk_type": chunk_type,
+            "page_number": page + 1 if isinstance(page, int) and page >= 0 else None,
+            "document": filename_src,
+        }
+
+        # Add type-specific metadata
+        if chunk_type == "table":
+            source_entry["table_title"] = source_metadata.get("table_title", "")
+        elif chunk_type in ("figure", "visual_page"):
+            source_entry["figure_id"] = source_metadata.get("figure_id", "")
+            source_entry["image_path"] = source_metadata.get("image_path", "")
+            source_entry["has_diagram"] = source_metadata.get("has_diagram", False)
+        
+        if source_metadata.get("section"):
+            source_entry["section"] = source_metadata["section"]
+
+        sources.append(source_entry)
+
+    # ── Step 5: Format context for technical prompt ──
+    if use_technical:
+        formatted_context = format_context_for_technical_prompt(
+            [(doc, score) for doc, score in docs_with_scores]
         )
+        # Replace context_docs with a single doc containing formatted context
+        formatted_doc = Document(page_content=formatted_context, metadata={})
+        chain_context = [formatted_doc]
+    else:
+        chain_context = context_docs
 
-    # ── Step 3: Stream LLM generation (loads LLM into VRAM, embedding is gone) ──
+    # ── Step 6: Stream LLM response ──
     async def generate_sse():
-        yield sse({"type": "sources", "sources": sources})
+        yield sse({
+            "type": "sources",
+            "sources": sources,
+            "query_type": query_type if use_technical else None,
+        })
 
         history_tuples = []
         if request.history:
@@ -275,32 +325,51 @@ async def chat(request: ChatRequest):
                 history_tuples.append((msg.role, msg.content))
 
         full_answer = ""
-        async for chunk in qa_chain.astream(
-            {"input": request.query, "context": context_docs, "history": history_tuples}
-        ):
-            full_answer += chunk
-            yield sse({"type": "content", "token": chunk})
-
-        # Generate 3 follow-up suggestions
         try:
-            suggestion_prompt = f"Based on the following conversation and answer, suggest 3 short follow-up questions the user could ask. Return ONLY a JSON array of strings.\n\nAnswer: {full_answer}\n\nQuestions:"
+            async for chunk in chain.astream(
+                {"input": request.query, "context": chain_context, "history": history_tuples}
+            ):
+                full_answer += chunk
+                yield sse({"type": "content", "token": chunk})
+        except Exception as llm_err:
+            logger.error(f"LLM streaming error: {llm_err}", exc_info=True)
+            error_msg = (
+                "\n\n⚠️ **LLM Connection Error**: Could not reach the language model. "
+            )
+            if is_private_mode():
+                error_msg += (
+                    "Private mode is enabled but the local Ollama server is not running. "
+                    "Please **start Ollama** (`ollama serve`) or switch back to Normal mode."
+                )
+            else:
+                error_msg += (
+                    "Neither local Ollama nor cloud fallback models responded. "
+                    "Please check your API keys and network connection."
+                )
+            yield sse({"type": "content", "token": error_msg})
+            yield sse({"type": "end", "suggestions": [
+                "Switch to Normal mode",
+                "How do I start Ollama?",
+                "Check system status",
+            ]})
+            return
+
+        # Generate follow-up suggestions
+        try:
+            suggestion_prompt = (
+                f"Based on the following conversation and answer, suggest 3 short follow-up questions the user could ask. "
+                f"Return ONLY a JSON array of strings.\n\nAnswer: {full_answer}\n\nQuestions:"
+            )
             sug_result = await asyncio.to_thread(llm_instance.invoke, suggestion_prompt)
-            match = re.search(r"\[.*\]", sug_result, re.DOTALL)
+            sug_text = sug_result.content if hasattr(sug_result, "content") else str(sug_result)
+            match = re.search(r"\[.*\]", sug_text, re.DOTALL)
             suggestions = (
                 json.loads(match.group(0))
                 if match
-                else [
-                    "Can you elaborate?",
-                    "What are the key takeaways?",
-                    "Tell me more.",
-                ]
+                else ["Can you elaborate?", "What are the key takeaways?", "Tell me more."]
             )
         except Exception:
-            suggestions = [
-                "Can you elaborate?",
-                "What are the key takeaways?",
-                "Tell me more.",
-            ]
+            suggestions = ["Can you elaborate?", "What are the key takeaways?", "Tell me more."]
 
         yield sse({"type": "end", "suggestions": suggestions})
 
@@ -309,19 +378,21 @@ async def chat(request: ChatRequest):
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
+    """Upload and process a document with multimodal extraction."""
     await ensure_rag_ready()
 
     filename = secure_filename(file.filename or "")
-    content_type = file.content_type or ""
     ext = os.path.splitext(filename)[1].lower()
 
     if ext not in [".pdf", ".md", ".txt", ".csv", ".jpg", ".jpeg", ".png", ".webp"]:
         raise HTTPException(status_code=400, detail="Unsupported file format.")
+
     file_path = os.path.join(DATA_DIR, filename)
 
     async def upload_stream():
         size = 0
         try:
+            # Save file
             with open(file_path, "wb") as buffer:
                 while True:
                     chunk = await file.read(1 << 20)
@@ -335,201 +406,28 @@ async def upload_file(file: UploadFile = File(...)):
                         )
                     buffer.write(chunk)
 
-            yield sse({"type": "progress", "phase": "upload", "percent": 25})
-
-            if ext in [".png", ".jpg", ".jpeg", ".webp"]:
-                import base64
-
-                import requests
-
-                def describe_image(path):
-                    import os
-                    from dotenv import load_dotenv
-                    load_dotenv()
-                    hf_token = os.getenv("HF_TOKEN")
-                    
-                    if not hf_token:
-                        return "Error: HF_TOKEN is not set in environment variables."
-                    
-                    headers = {
-                        "Authorization": f"Bearer {hf_token}",
-                        "Content-Type": "application/json"
-                    }
-                    # Use Qwen2.5-VL-3B via the Hugging Face OpenAI-compatible Chat API
-                    API_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-VL-3B-Instruct/v1/chat/completions"
-                    
-                    try:
-                        import requests
-                        import base64
-                        import mimetypes
-                        
-                        mime_type, _ = mimetypes.guess_type(path)
-                        if not mime_type:
-                            mime_type = "image/jpeg"
-                            
-                        with open(path, "rb") as f:
-                            img_b64 = base64.b64encode(f.read()).decode("utf-8")
-                            
-                        image_data_url = f"data:{mime_type};base64,{img_b64}"
-                        
-                        ocr_prompt = (
-                            "You are an image analysis and OCR system. Analyze the provided image carefully. "
-                            "Tasks: 1. Detect all visible text. 2. Transcribe the text exactly as it appears. "
-                            "3. Preserve numbers, symbols, punctuation and capitalization. 4. Identify the language of each text region. "
-                            "5. Identify important objects in the image. 6. Describe the overall scene. "
-                            "7. If the image contains a document, receipt, sign, label, poster or screenshot, extract its structured information. "
-                            "8. Do not invent text that is not visible. Return ONLY valid JSON: "
-                            '{ "detected_text": [], "languages": [], "objects": [], "scene_description": "", "document_type": "", "structured_data": {} }'
-                        )
-                        
-                        payload = {
-                            "model": "Qwen/Qwen2.5-VL-3B-Instruct",
-                            "messages": [
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "text",
-                                            "text": ocr_prompt
-                                        },
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {
-                                                "url": image_data_url
-                                            }
-                                        }
-                                    ]
-                                }
-                            ],
-                            "max_tokens": 1500
-                        }
-                        
-                        res = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-                        json_res = res.json()
-                        
-                        if isinstance(json_res, dict) and "error" in json_res:
-                            print(f"HuggingFace API error: {json_res['error']}")
-                            return "Failed to generate description."
-                            
-                        if "choices" in json_res and len(json_res["choices"]) > 0:
-                            return json_res["choices"][0]["message"]["content"]
-                            
-                        return "Failed to generate description."
-                    except requests.exceptions.ConnectionError as e:
-                        print(f"Network error reaching HuggingFace (DNS/Offline). Falling back to local moondream model...")
-                        # Fallback to local Ollama if offline
-                        try:
-                            import base64
-                            with open(path, "rb") as f:
-                                img_b64 = base64.b64encode(f.read()).decode("utf-8")
-                            payload = {
-                                "model": "moondream",
-                                "prompt": "Describe this image in detail.",
-                                "images": [img_b64],
-                                "stream": False,
-                            }
-                            res = requests.post("http://localhost:11434/api/generate", json=payload)
-                            return res.json().get("response", "Failed to generate description.")
-                        except Exception as fallback_e:
-                            print(f"Fallback local Vision API error: {fallback_e}")
-                            return "Error describing image."
-                    except Exception as e:
-                        print(f"Vision API error: {e}")
-                        return "Error describing image."
-
-                description = await asyncio.to_thread(describe_image, file_path)
-                if not description or description.startswith("Error"):
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Failed to process image with vision model.",
-                    )
-
-                docs = [
-                    Document(
-                        page_content=f"Image Description for {filename}:\n{description}",
-                        metadata={"source": file_path, "page": 0},
-                    )
-                ]
-            else:
-                if ext == ".pdf":
-                    loader = PyPDFLoader(file_path)
-                elif ext in [".md", ".txt"]:
-                    from langchain_community.document_loaders import TextLoader
-
-                    loader = TextLoader(file_path, encoding="utf-8")
-                elif ext == ".csv":
-                    from langchain_community.document_loaders.csv_loader import \
-                        CSVLoader
-
-                    loader = CSVLoader(file_path, encoding="utf-8")
-                else:
-                    try:
-                        from langchain_community.document_loaders import \
-                            TextLoader
-
-                        loader = TextLoader(file_path, encoding="utf-8")
-                    except Exception:
-                        raise HTTPException(
-                            status_code=400, detail="Unsupported file format."
-                        )
-
-                docs = await asyncio.to_thread(loader.load)
-
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
-            )
-            splits = await asyncio.to_thread(text_splitter.split_documents, docs)
-
-            if not splits:
-                raise HTTPException(
-                    status_code=400, detail="No extractable text found in PDF."
-                )
-
-            total = len(splits)
-            batch_size = 5
-            for i in range(0, total, batch_size):
-                batch = splits[i : i + batch_size]
-                import uuid
-                ids = [str(uuid.uuid4()) for _ in batch]
-                async with upload_lock:
-                    await asyncio.to_thread(vectorstore.add_documents, batch, ids=ids)
-                percent = 25 + int(75 * (i + len(batch)) / total)
-                yield sse(
-                    {
-                        "type": "progress",
-                        "phase": "embedding",
-                        "percent": min(percent, 100),
-                    }
-                )
-
-            yield sse({"type": "done", "filename": filename, "chunks_added": total})
+            # Process document through multimodal pipeline
+            async for event in process_document(file_path, filename, upload_lock):
+                yield event
 
         except HTTPException as exc:
             if os.path.exists(file_path):
                 os.remove(file_path)
             yield sse({"type": "error", "message": str(exc.detail)})
         except Exception as exc:
-            print("Upload error:", exc)
+            logger.error(f"Upload error: {exc}", exc_info=True)
             if os.path.exists(file_path):
                 os.remove(file_path)
-            yield sse({"type": "error", "message": "Failed to process PDF."})
+            yield sse({"type": "error", "message": "Failed to process document."})
 
     return StreamingResponse(upload_stream(), media_type="text/event-stream")
 
 
-import datetime
-
-
 @app.get("/documents")
 async def list_documents():
+    """List documents with enhanced multimodal metadata."""
     await ensure_rag_ready()
-    # Get all documents from Supabase
-    try:
-        res = supabase_client.table("documents").select("metadata").execute()
-        metadatas = [r["metadata"] for r in res.data] if res.data else []
-    except Exception as e:
-        print("Error getting documents from Supabase:", e)
-        return []
+    metadatas = db_manager.get_all_documents_metadata()
 
     docs = {}
     for meta in metadatas:
@@ -549,6 +447,15 @@ async def list_documents():
                 "type": "unknown",
                 "uploaded_at": None,
                 "source": source,
+                "tables": 0,
+                "figures": 0,
+                "images": 0,
+                "visual_pages": 0,
+                "text_indexed": False,
+                "tables_indexed": False,
+                "visual_indexed": False,
+                "multimodal_ready": False,
+                "chunk_types": set(),
             }
 
         docs[name]["chunks"] += 1
@@ -556,9 +463,27 @@ async def list_documents():
         if page is not None:
             docs[name]["pages"].add(page)
 
-    # Enrich with file stats
+        chunk_type = meta.get("chunk_type", "text")
+        docs[name]["chunk_types"].add(chunk_type)
+
+        if chunk_type == "table":
+            docs[name]["tables"] += 1
+        elif chunk_type == "figure":
+            docs[name]["figures"] += 1
+        elif chunk_type == "image":
+            docs[name]["images"] += 1
+        elif chunk_type == "visual_page":
+            docs[name]["visual_pages"] += 1
+
+    # Enrich with file stats and processing status
     for name, info in docs.items():
         info["pages"] = len(info["pages"])
+        info["text_indexed"] = "text" in info["chunk_types"]
+        info["tables_indexed"] = "table" in info["chunk_types"]
+        info["visual_indexed"] = "visual_page" in info["chunk_types"] or "figure" in info["chunk_types"]
+        info["multimodal_ready"] = info["text_indexed"] and (info["tables_indexed"] or info["visual_indexed"])
+        info["chunk_types"] = list(info["chunk_types"])  # Convert set to list for JSON
+
         file_path = os.path.join(DATA_DIR, name)
         if os.path.exists(file_path):
             stat = os.stat(file_path)
@@ -574,30 +499,28 @@ async def list_documents():
 @app.delete("/documents/{name}")
 async def delete_document(name: str):
     await ensure_rag_ready()
-    file_path = os.path.join(DATA_DIR, secure_filename(name))
+    safe_name = secure_filename(name)
+    file_path = os.path.join(DATA_DIR, safe_name)
 
-    # 1. Delete from Supabase
-    try:
-        res = supabase_client.table("documents").select("id, metadata").execute()
-        if res.data:
-            ids_to_delete = []
-            for row in res.data:
-                meta = row.get("metadata")
-                if meta and meta.get("source", "").endswith(name):
-                    ids_to_delete.append(row["id"])
-            
-            if ids_to_delete:
-                # Supabase Python client limits `in_` filter to arrays, but deleting individually is safer if many
-                for doc_id in ids_to_delete:
-                    supabase_client.table("documents").delete().eq("id", doc_id).execute()
-    except Exception as e:
-        print("Error deleting from Supabase:", e)
+    # Delete from database
+    deleted = db_manager.delete_document(name)
 
-    # 2. Delete file
+    # Delete file
     if os.path.exists(file_path):
         os.remove(file_path)
 
-    return {"status": "success", "deleted": name}
+    # Clean up page images and extracted images
+    for subdir in [PAGE_IMAGES_DIR, os.path.join(DATA_DIR, "extracted_images")]:
+        if os.path.isdir(subdir):
+            safe = re.sub(r'[^\w\-.]', '_', name)
+            for f in os.listdir(subdir):
+                if f.startswith(safe):
+                    fp = os.path.join(subdir, f)
+                    if os.path.isfile(fp):
+                        os.remove(fp)
+
+    clear_knowledge_graph_cache()
+    return {"status": "success", "deleted": name, "chunks_deleted": deleted}
 
 
 @app.get("/files/{name}")
@@ -612,114 +535,133 @@ async def get_file(name: str):
 async def search_documents(q: str):
     await ensure_rag_ready()
     docs_with_scores = await asyncio.to_thread(
-        vectorstore.similarity_search_with_score, q, k=5
+        db_manager.similarity_search, q, k=5
     )
     results = []
     for doc, score in docs_with_scores:
         meta = doc.metadata
-        results.append(
-            {
-                "text": doc.page_content,
-                "source": os.path.basename(meta.get("source", "")),
-                "page": meta.get("page", 0) + 1,
-                "score": max(0.0, min(1.0, 1.0 - score)),
-            }
-        )
+        results.append({
+            "text": doc.page_content,
+            "source": os.path.basename(meta.get("source", "")),
+            "page": meta.get("page", 0) + 1 if isinstance(meta.get("page"), int) else 0,
+            "score": max(0.0, min(1.0, score)),
+            "chunk_type": meta.get("chunk_type", "text"),
+        })
     return results
-
-
-class QuizRequest(BaseModel):
-    document: str
-    count: int = 5
-    kind: str = "quiz"  # or "flashcards"
 
 
 @app.post("/quiz")
 async def generate_quiz(request: QuizRequest):
     await ensure_rag_ready()
-    response = supabase_client.table("documents").select("content, metadata").execute()
-    chunks = []
-    for row in response.data:
-        meta = row.get("metadata", {})
-        if meta and meta.get("source", "").endswith(request.document):
-            chunks.append(row.get("content", ""))
+    chunks = db_manager.get_document_chunks(request.document)
 
     if not chunks:
         raise HTTPException(status_code=404, detail="Document chunks not found")
 
     import random
-
-    selected_chunks = random.sample(chunks, min(len(chunks), 10))
+    content_list = [c.get("content", "") for c in chunks if c.get("content")]
+    selected_chunks = random.sample(content_list, min(len(content_list), 10))
     context_str = "\n---\n".join(selected_chunks)
 
     if request.kind == "quiz":
-        prompt = f"Based on the following document context, generate a multiple-choice quiz with {request.count} questions. Return ONLY a JSON array of objects. Each object must have 'question', 'options' (array of 4 strings), 'answer' (exact match to one option), 'explanation', and 'source' (brief excerpt). Do not include markdown formatting like ```json.\n\nContext:\n{context_str}"
+        prompt = (
+            f"Based on the following document context, generate a multiple-choice quiz with {request.count} questions. "
+            f"Return ONLY a JSON array of objects. Each object must have 'question', 'options' (array of 4 strings), "
+            f"'answer' (exact match to one option), 'explanation', and 'source' (brief excerpt). "
+            f"Do not include markdown formatting like ```json.\n\nContext:\n{context_str}"
+        )
     else:
-        prompt = f"Based on the following document context, generate {request.count} flashcards. Return ONLY a JSON array of objects. Each object must have 'front' (concept or question), 'back' (definition or answer), and 'source' (brief excerpt). Do not include markdown formatting like ```json.\n\nContext:\n{context_str}"
+        prompt = (
+            f"Based on the following document context, generate {request.count} flashcards. "
+            f"Return ONLY a JSON array of objects. Each object must have 'front' (concept or question), "
+            f"'back' (definition or answer), and 'source' (brief excerpt). "
+            f"Do not include markdown formatting like ```json.\n\nContext:\n{context_str}"
+        )
 
-    result_obj = await asyncio.to_thread(llm_instance.invoke, prompt)
+    try:
+        result_obj = await asyncio.to_thread(llm_instance.invoke, prompt)
+    except Exception as llm_err:
+        logger.error(f"Quiz LLM error: {llm_err}", exc_info=True)
+        detail = "Could not reach the language model to generate the quiz."
+        if is_private_mode():
+            detail += " Private mode is on but Ollama is not running. Start Ollama or switch to Normal mode."
+        raise HTTPException(status_code=503, detail=detail)
     result = result_obj.content if hasattr(result_obj, "content") else str(result_obj)
 
     try:
-        match = re.search(r"\[.*\]", result, re.DOTALL)
+        clean_res = result.strip()
+        if clean_res.startswith("```"):
+            clean_res = re.sub(r"^```(?:json)?\s*", "", clean_res)
+            clean_res = re.sub(r"\s*```$", "", clean_res)
+        match = re.search(r"\[.*\]", clean_res, re.DOTALL)
         if match:
             return json.loads(match.group(0))
-        return json.loads(result)
+        return json.loads(clean_res)
     except Exception as e:
-        print("Quiz parse error:", e, "\nResult:", result)
+        logger.error(f"Quiz parse error: {e}\nResult: {result}")
         raise HTTPException(status_code=500, detail="Failed to parse LLM response")
 
 
 @app.get("/map")
 async def get_knowledge_map():
     await ensure_rag_ready()
-    response = supabase_client.table("documents").select("id, content, metadata, embedding").execute()
-    data = {"embeddings": [], "metadatas": [], "documents": [], "ids": []}
-    import json
-    for row in response.data:
-        if row.get("embedding"):
-            emb = row["embedding"]
-            if isinstance(emb, str):
-                emb = json.loads(emb)
-            data["embeddings"].append(emb)
-            data["metadatas"].append(row.get("metadata", {}))
-            data["documents"].append(row.get("content", ""))
-            data["ids"].append(row.get("id"))
-            
-    embeddings = data["embeddings"]
-    if embeddings is None or len(embeddings) == 0:
-        return {"points": [], "clusters": []}
-
     import numpy as np
     from sklearn.cluster import KMeans
     from sklearn.decomposition import PCA
 
+    data = db_manager.get_all_with_embeddings()
+    embeddings = data["embeddings"]
+
+    if len(embeddings) == 0:
+        return {"points": [], "clusters": []}
+
     X = np.array(embeddings)
 
-    n_components = min(3, len(X))
-    if n_components < 3:
-        pca = PCA(n_components=n_components)
-        X_3d = pca.fit_transform(X)
-        if n_components < 3:
-            X_3d = np.pad(X_3d, ((0, 0), (0, 3 - n_components)))
+    if len(X) == 1:
+        X_3d = np.array([[0.0, 0.0, 0.0]])
+        labels = np.array([0])
+        n_clusters = 1
+    elif len(X) < 3:
+        pca = PCA(n_components=1)
+        X_1d = pca.fit_transform(X)
+        X_3d = np.pad(X_1d, ((0, 0), (0, 2)))
+        n_clusters = min(2, len(X))
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        labels = kmeans.fit_predict(X)
     else:
         pca = PCA(n_components=3)
         X_3d = pca.fit_transform(X)
-
-    n_clusters = min(5, len(X))
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    labels = kmeans.fit_predict(X)
+        n_clusters = min(5, len(X))
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        labels = kmeans.fit_predict(X)
 
     async def fetch_cluster(i):
         indices = np.where(labels == i)[0]
-        sample_docs = [data["documents"][idx] for idx in indices[:3]]
-        sample_text = "\n---\n".join(sample_docs)
-        prompt = f"Give a 2-4 word summarizing title for the following texts:\n\n{sample_text}\n\nTitle:"
-        title_obj = await asyncio.to_thread(llm_instance.invoke, prompt)
-        title = title_obj.content if hasattr(title_obj, "content") else str(title_obj)
+        sample_docs = [data["documents"][idx] for idx in indices[:3] if data["documents"][idx].strip()]
+        if not sample_docs:
+            return {
+                "id": int(i),
+                "label": f"Cluster {i + 1}",
+                "count": len(indices),
+            }
+        sample_text = "\n---\n".join(sample_docs)[:1500]
+        prompt = (
+            "Give a concise 2-4 word summarizing title for the following technical excerpts. "
+            "Return ONLY the 2-4 word title, nothing else, no quotes, no conversational filler.\n\n"
+            f"Excerpts:\n{sample_text}\n\nTitle:"
+        )
+        try:
+            title_obj = await asyncio.to_thread(llm_instance.invoke, prompt)
+            title = title_obj.content if hasattr(title_obj, "content") else str(title_obj)
+            clean_title = title.strip().replace('"', '').replace("'", "")
+            if any(fluff in clean_title.lower() for fluff in ["please provide", "sure", "here is", "i cannot", "text to summarize"]) or len(clean_title) > 40:
+                clean_title = f"Topic {i + 1}"
+        except Exception as e:
+            logger.warning(f"Error generating cluster title for cluster {i}: {e}")
+            clean_title = f"Topic {i + 1}"
         return {
             "id": int(i),
-            "label": title.strip().replace('"', ""),
+            "label": clean_title,
             "count": len(indices),
         }
 
@@ -729,16 +671,182 @@ async def get_knowledge_map():
 
     points = []
     for i, meta in enumerate(data["metadatas"]):
-        points.append(
-            {
-                "id": data["ids"][i],
-                "x": float(X_3d[i, 0]),
-                "y": float(X_3d[i, 1]),
-                "z": float(X_3d[i, 2]),
-                "cluster": int(labels[i]),
-                "source": os.path.basename(meta.get("source", "")),
-                "text": data["documents"][i],
-            }
-        )
+        chunk_type = meta.get("chunk_type", "text") if meta else "text"
+        points.append({
+            "id": data["ids"][i],
+            "x": float(X_3d[i, 0]),
+            "y": float(X_3d[i, 1]),
+            "z": float(X_3d[i, 2]),
+            "cluster": int(labels[i]),
+            "source": os.path.basename(meta.get("source", "")) if meta else "",
+            "text": data["documents"][i],
+            "chunk_type": chunk_type,
+        })
 
     return {"points": points, "clusters": clusters}
+
+
+# ═══════════════════════════════════════════════════════════════
+# NEW ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+
+@app.get("/documents/{name}/pages/{page_number}")
+async def get_page_image(name: str, page_number: int):
+    """Serve a rendered page image for the PDF viewer."""
+    safe_name = re.sub(r'[^\w\-.]', '_', secure_filename(name))
+    # page_number can be 1-based (from frontend) or 0-based
+    idx = page_number - 1 if page_number > 0 else 0
+    img_filename = f"{safe_name}_page_{idx}.png"
+    img_path = os.path.join(PAGE_IMAGES_DIR, img_filename)
+
+    if not os.path.exists(img_path):
+        # Fallback check if 0-based was directly provided
+        alt_path = os.path.join(PAGE_IMAGES_DIR, f"{safe_name}_page_{page_number}.png")
+        if os.path.exists(alt_path):
+            img_path = alt_path
+        else:
+            raise HTTPException(status_code=404, detail="Page image not found")
+
+    return FileResponse(img_path, media_type="image/png")
+
+
+@app.get("/documents/{name}/info")
+async def get_document_info(name: str):
+    """Get detailed processing info for a document."""
+    await ensure_rag_ready()
+    chunks = db_manager.get_document_chunks(name)
+
+    if not chunks:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    info = {
+        "name": name,
+        "total_chunks": len(chunks),
+        "chunk_types": {},
+        "pages": set(),
+        "sections": set(),
+        "tables": [],
+        "figures": [],
+    }
+
+    for chunk in chunks:
+        meta = chunk.get("metadata", {})
+        ct = meta.get("chunk_type", "text")
+        info["chunk_types"][ct] = info["chunk_types"].get(ct, 0) + 1
+
+        page = meta.get("page")
+        if page is not None:
+            info["pages"].add(page)
+
+        section = meta.get("section")
+        if section:
+            info["sections"].add(section)
+
+        if ct == "table":
+            info["tables"].append({
+                "title": meta.get("table_title", ""),
+                "page": page + 1 if isinstance(page, int) else None,
+            })
+        elif ct == "figure":
+            info["figures"].append({
+                "figure_id": meta.get("figure_id", ""),
+                "page": page + 1 if isinstance(page, int) else None,
+            })
+
+    info["pages"] = sorted(info["pages"], key=lambda p: int(p) if str(p).isdigit() else 0)
+    info["sections"] = sorted([str(s) for s in info["sections"] if s])
+
+    return info
+
+
+# ── Privacy Mode Endpoints ──
+
+@app.get("/mode")
+async def get_mode():
+    """Get the current privacy mode ('normal' or 'private')."""
+    mode = get_privacy_mode()
+    return {"mode": mode, "message": f"System is operating in {mode} mode"}
+
+
+@app.post("/mode")
+async def set_mode(request: ModeRequest):
+    """Set the privacy mode at runtime ('normal' or 'private')."""
+    try:
+        set_privacy_mode(request.mode)
+        global qa_chain, qa_chain_technical, llm_instance
+        llm_instance = create_llm_instance()
+        qa_chain, _ = create_qa_chain(technical_mode=False)
+        qa_chain_technical, _ = create_qa_chain(technical_mode=True)
+        logger.info(f"Switched privacy mode to: {request.mode}")
+
+        from backend.llm import _is_ollama_available
+        ollama_up = _is_ollama_available()
+        
+        if request.mode == "private" and not ollama_up:
+            msg = (
+                "Switched to private mode. Ollama is not running — "
+                "using Groq API as fallback (API-key based, no data stored)."
+            )
+        else:
+            msg = f"Successfully switched to {request.mode} mode"
+
+        return {
+            "mode": request.mode,
+            "message": msg,
+            "ollama_available": ollama_up,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Document Version Comparison Endpoint ──
+
+@app.post("/compare")
+async def compare_docs(request: CompareRequest):
+    """Compare two revisions of a technical manual and identify changed numerical values,
+    units, warnings, component labels, and tables.
+    """
+    await ensure_rag_ready()
+    try:
+        result = await compare_documents(request.doc_a, request.doc_b)
+        return result
+    except Exception as e:
+        logger.error(f"Error comparing documents: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Interactive Engineering Knowledge Graph Endpoint ──
+
+@app.get("/knowledge-graph")
+async def get_knowledge_graph(document: Optional[str] = None):
+    """Get the interactive engineering knowledge graph (nodes + explicit relationship edges)."""
+    await ensure_rag_ready()
+    try:
+        graph = await generate_knowledge_graph(document)
+        return graph
+    except Exception as e:
+        logger.error(f"Error generating knowledge graph: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── NLP Intelligence Analysis Endpoint ──
+
+@app.post("/nlp/analyze")
+async def analyze_nlp(request: NLPAnalyzeRequest):
+    """Analyze text through the NLP subsystem: tokenization, intent classification,
+    NER, relation extraction, semantic similarity, and RRF rank fusion.
+    """
+    await ensure_rag_ready()
+    try:
+        result = analyze_nlp_query(request.text)
+        return result
+    except Exception as e:
+        logger.error(f"Error in NLP query analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+
