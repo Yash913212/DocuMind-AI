@@ -25,6 +25,7 @@ import { InteractiveRAGSimulator } from "../components/InteractiveRAGSimulator";
 import { InteractiveRevisionDiffPreview } from "../components/InteractiveRevisionDiffPreview";
 import { InteractiveNLPLab } from "../components/InteractiveNLPLab";
 import { CountUp, Magnetic, Reveal } from "../components/CinematicFX";
+import { DocuMindLogo } from "../components/DocuMindLogo";
 
 const Marquee = () => {
   const items = [
@@ -43,7 +44,7 @@ const Marquee = () => {
     "FastAPI Server-Sent Events (SSE)",
   ];
   return (
-    <div className="marquee-mask w-full overflow-hidden whitespace-nowrap bg-indigo/60 backdrop-blur-md py-3.5 border-y border-fog/15">
+    <div className="marquee-mask w-full overflow-hidden whitespace-nowrap bg-indigo/40 backdrop-blur-xl py-3.5 border-y border-fog/8">
       <div className="inline-block animate-[marquee_28s_linear_infinite] hover:[animation-play-state:paused]">
         {items
           .concat(items)
@@ -130,20 +131,21 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
   };
 
   const headlineWords = [
-    { text: "Engineering" },
-    { text: "documents" },
-    { text: "understood,", accent: true },
+    { text: "Engineering", serif: true },
+    { text: "manuals" },
+    { text: "understood,", accent: true, serif: true, italic: true },
     { text: "verified" },
     { text: "&" },
-    { text: "mapped." },
+    { text: "mapped.", serif: true },
   ];
 
   return (
     <div ref={containerRef} className="h-full flex flex-col overflow-y-auto bg-ink text-parchment relative scroll-smooth">
-      {/* Background Radial Glow Accents */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[400px] bg-brass/5 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-cyan/5 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-1/4 left-10 w-[600px] h-[450px] bg-indigo/20 rounded-full blur-[160px] pointer-events-none" />
+      {/* Background Radial Glow Accents — Charcoal + Signal Red Atmosphere */}
+      <div className="absolute top-0 left-1/4 w-[700px] h-[500px] bg-brass/[0.07] rounded-full blur-[180px] pointer-events-none" />
+      <div className="absolute top-[30%] right-0 w-[550px] h-[550px] bg-cyan/[0.04] rounded-full blur-[180px] pointer-events-none" />
+      <div className="absolute bottom-[20%] left-0 w-[700px] h-[500px] bg-indigo/15 rounded-full blur-[200px] pointer-events-none" />
+      <div className="absolute top-[60%] left-[40%] w-[400px] h-[400px] bg-brass/[0.04] rounded-full blur-[160px] pointer-events-none" />
 
       {/* Cinematic Atmosphere */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -170,17 +172,12 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
       </div>
 
       {/* Top Floating Header */}
-      <header className="px-6 sm:px-12 py-4 flex justify-between items-center border-b border-fog/10 bg-ink/80 backdrop-blur-xl sticky top-0 z-30">
+      <header className="px-6 sm:px-12 py-4 flex justify-between items-center border-b border-fog/8 bg-ink/85 backdrop-blur-2xl sticky top-0 z-30 shadow-lg shadow-black/20">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brass/30 to-indigo border border-brass/50 flex items-center justify-center text-brass shadow-lg shadow-brass/10">
-            <Compass size={22} className="animate-spin-slow" />
-          </div>
+          <DocuMindLogo size={40} animate={true} />
           <div>
-            <div className="font-hero text-xl tracking-tight text-parchment flex items-center gap-2">
+            <div className="font-hero text-xl tracking-tight text-parchment">
               DocuMind AI
-              <span className="px-2 py-0.5 text-[10px] font-data-mono font-medium rounded-full bg-brass/15 text-brass border border-brass/30">
-                v2.5 NextGen
-              </span>
             </div>
             <div className="text-[10px] font-ui-label text-fog uppercase tracking-wider hidden sm:block">
               Multimodal Engineering Intelligence & 3D Knowledge Atlas
@@ -280,22 +277,28 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
               <span>LOCAL-FIRST</span>
             </motion.div>
 
-            {/* Main Headline with Apple SF Pro Display & Signal Red Accent */}
+            {/* Main Headline with Editorial Luxury Typography & Signal Red Accent */}
             <motion.h1
               variants={item}
-              aria-label="Engineering documents understood, verified and mapped."
-              className="font-hero text-4xl sm:text-6xl lg:text-[68px] font-semibold tracking-[-0.035em] leading-[1.06] text-parchment"
+              aria-label="Engineering manuals understood, verified and mapped."
+              className="text-4xl sm:text-6xl lg:text-[70px] tracking-[-0.035em] leading-[1.08] text-parchment"
             >
               {headlineWords.map((word, index) => (
                 <span
                   key={index}
                   aria-hidden="true"
-                  className="inline-block overflow-hidden align-bottom mr-[0.22em] pb-[0.09em] -mb-[0.09em]"
+                  className="inline-block overflow-hidden align-bottom mr-[0.24em] pb-[0.09em] -mb-[0.09em]"
                 >
                   <motion.span
                     variants={wordVariant}
                     className={`inline-block ${
-                      word.accent ? "text-gradient-red animated-gradient-text font-semibold" : ""
+                      word.serif ? "font-serif text-[1.12em] tracking-tight font-normal" : "font-display font-semibold"
+                    } ${
+                      word.italic ? "italic" : ""
+                    } ${
+                      word.accent
+                        ? "text-[#e10600] font-normal drop-shadow-[0_0_24px_rgba(225,6,0,0.35)]"
+                        : "text-parchment"
                     }`}
                   >
                     {word.text}
@@ -385,7 +388,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
               filter: { duration: 0.9, delay: 0.3 },
               y: { duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 },
             }}
-            className="w-full lg:w-[40%] h-[400px] sm:h-[480px] lg:h-[540px] relative rounded-t-[140px] rounded-b-3xl overflow-hidden bg-[#242426] border border-fog/25 shadow-2xl flex items-center justify-center group cinematic-frame"
+            className="w-full lg:w-[40%] h-[400px] sm:h-[480px] lg:h-[540px] relative rounded-t-[140px] rounded-b-3xl overflow-hidden bg-gradient-to-b from-[#1e1e20] to-[#161618] border border-fog/15 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.6),0_0_40px_-5px_rgba(225,6,0,0.08)] flex items-center justify-center group cinematic-frame"
           >
             <div className="pointer-events-none absolute inset-4 z-10" aria-hidden="true">
               <span className="absolute left-0 top-0 h-7 w-7 rounded-tl-xl border-l border-t border-parchment/25" />
@@ -395,7 +398,8 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
             </div>
 
             {/* Architectural Vertical Signal Red Light Beam on right edge */}
-            <div className="absolute top-8 bottom-8 right-3 w-1.5 rounded-full bg-brass/80 shadow-[0_0_12px_#e10600] pointer-events-none z-10" />
+            {/* Architectural Signal Red Light Beam — pulsating accent line */}
+            <div className="absolute top-8 bottom-8 right-3 w-1.5 rounded-full bg-brass/90 shadow-[0_0_16px_#e10600,0_0_40px_rgba(225,6,0,0.3)] pointer-events-none z-10 animate-soft-glow" />
 
 
 
@@ -486,8 +490,8 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
               <Terminal size={12} />
               <span>Live Retrieval Sandbox</span>
             </div>
-            <h2 className="font-hero text-3xl sm:text-4xl text-parchment font-semibold">
-              Inspect Real Retrieval Evidence
+            <h2 className="text-3xl sm:text-4xl text-parchment font-semibold tracking-tight">
+              Inspect Real <span className="font-serif italic font-normal text-[#e10600]">Retrieval Evidence</span>
             </h2>
             <p className="font-body text-fog text-sm sm:text-base">
               Run a query against the same vector index used by chat and inspect the exact
@@ -506,12 +510,12 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
         <section id="nlp-lab" className="space-y-6 pt-4 scroll-mt-24">
           <Reveal>
           <div className="text-center max-w-2xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet/15 border border-violet/35 text-[11px] font-data-mono text-violet">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brass/15 border border-brass/35 text-[11px] font-data-mono text-brass uppercase tracking-wider">
               <Brain size={12} />
               <span>Natural Language Processing Architecture</span>
             </div>
-            <h2 className="font-hero text-3xl sm:text-4xl text-parchment font-semibold">
-              Linguistic & Semantic Intelligence Sandbox
+            <h2 className="text-3xl sm:text-4xl text-parchment font-semibold tracking-tight">
+              Linguistic & Semantic <span className="font-serif italic font-normal text-[#e10600]">Intelligence Sandbox</span>
             </h2>
             <p className="font-body text-fog text-sm sm:text-base">
               Inspect how DocuMind AI tokenizes complex engineering vocabulary, classifies retrieval intents,
@@ -534,8 +538,8 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
               <div className="text-xs font-data-mono uppercase text-brass tracking-widest mb-1">
                 Engineering Capabilities
               </div>
-              <h2 className="font-hero text-3xl sm:text-4xl text-parchment font-semibold">
-                Purpose-Built for Complex Engineering Specs
+              <h2 className="text-3xl sm:text-4xl text-parchment font-semibold tracking-tight">
+                Purpose-Built for <span className="font-serif italic font-normal text-[#e10600]">Engineering Manuals</span>
               </h2>
             </div>
             <p className="font-body text-fog text-sm max-w-md">
@@ -798,7 +802,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
 
         {/* Bottom CTA Banner */}
         <Reveal amount={0.12}>
-        <section className="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-indigo/90 via-ink to-indigo/80 border border-brass/30 shadow-2xl relative overflow-hidden text-center space-y-5">
+        <section className="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-[#2a2a2d]/95 via-ink to-[#2a2a2d]/85 border border-brass/25 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5),0_0_30px_-5px_rgba(225,6,0,0.08)] relative overflow-hidden text-center space-y-5">
           <div className="absolute inset-0 cta-grid opacity-50 pointer-events-none" aria-hidden="true" />
           <motion.div
             className="absolute -right-20 -top-24 h-80 w-80 rounded-full bg-brass/20 blur-[100px] pointer-events-none"
@@ -836,7 +840,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
       </main>
 
       {/* Global Marquee & Footer */}
-      <footer className="mt-auto border-t border-fog/10 bg-ink/90">
+      <footer className="mt-auto border-t border-fog/8 bg-gradient-to-b from-ink/95 to-ink">
         <Marquee />
         <div className="max-w-7xl mx-auto px-6 sm:px-12 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-data-mono text-fog">
           <div className="flex items-center gap-3">

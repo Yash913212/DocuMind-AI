@@ -170,7 +170,7 @@ export function ConversationSummaryModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 16 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#272727] text-parchment rounded-2xl border border-fog/20 shadow-2xl overflow-hidden z-10"
+          className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-indigo text-parchment rounded-2xl border border-fog/20 shadow-2xl overflow-hidden z-10"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-fog/15 bg-indigo/40 backdrop-blur-sm shrink-0">

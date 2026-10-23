@@ -46,7 +46,7 @@ export function Inspector({ isOpen, onClose, content }) {
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-6 font-body text-parchment prose prose-invert prose-p:leading-relaxed prose-headings:font-hero">
+            <div className="flex-1 overflow-y-auto p-6 font-body text-parchment markdown-body leading-relaxed">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {content || "Select a citation or chunk to inspect it here."}
               </ReactMarkdown>

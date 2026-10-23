@@ -102,7 +102,7 @@ export function ConversationHistoryDrawer({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="w-screen max-w-md bg-[#252525] border-l border-fog/15 shadow-2xl flex flex-col pointer-events-auto text-parchment"
+            className="w-screen max-w-md bg-indigo border-l border-fog/15 shadow-2xl flex flex-col pointer-events-auto text-parchment"
           >
             {/* Drawer Header */}
             <div className="px-5 py-4 border-b border-fog/15 bg-indigo/40 flex items-center justify-between shrink-0">

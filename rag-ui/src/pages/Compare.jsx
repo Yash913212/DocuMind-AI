@@ -91,13 +91,13 @@ export function Compare() {
   const getCategoryIcon = (category) => {
     switch (category) {
       case "value":
-        return <Hash size={16} className="text-brass" />;
+        return <Hash size={16} className="text-[#e10600]" />;
       case "warning":
-        return <AlertTriangle size={16} className="text-rust" />;
+        return <AlertTriangle size={16} className="text-[#e10600]" />;
       case "table":
-        return <TableIcon size={16} className="text-moss" />;
+        return <TableIcon size={16} className="text-[#c0c0c0]" />;
       case "label":
-        return <Tag size={16} className="text-fog" />;
+        return <Tag size={16} className="text-[#c0c0c0]" />;
       default:
         return <FileText size={16} className="text-parchment" />;
     }
@@ -107,19 +107,19 @@ export function Compare() {
     switch (severity) {
       case "critical":
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-data-mono uppercase tracking-wider bg-rust/20 text-rust border border-rust/40">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-data-mono uppercase tracking-wider bg-[#e10600]/20 text-[#e10600] border border-[#e10600]/40 font-semibold shadow-[0_0_12px_rgba(225,6,0,0.25)]">
             Critical
           </span>
         );
       case "warning":
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-data-mono uppercase tracking-wider bg-brass/20 text-brass border border-brass/40">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-data-mono uppercase tracking-wider bg-[#c0c0c0]/15 text-[#c0c0c0] border border-[#c0c0c0]/30 font-medium">
             Warning
           </span>
         );
       default:
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-data-mono uppercase tracking-wider bg-fog/20 text-fog border border-fog/30">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-data-mono uppercase tracking-wider bg-ink/60 text-fog border border-fog/20">
             Info
           </span>
         );
@@ -128,24 +128,31 @@ export function Compare() {
 
   return (
     <div className="h-full flex flex-col py-4 sm:py-8 px-4 sm:px-8 relative w-full overflow-y-auto">
-      <header className="mb-6 shrink-0 max-w-5xl mx-auto w-full">
+      {/* Cinematic Ambient Atmosphere */}
+      <div className="absolute top-0 right-1/4 w-[600px] h-[400px] bg-brass/[0.06] rounded-full blur-[180px] pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-[500px] h-[400px] bg-parchment/[0.03] rounded-full blur-[180px] pointer-events-none" />
+
+      <header className="mb-6 shrink-0 max-w-5xl mx-auto w-full relative z-10">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="p-2 rounded-lg bg-brass/15 border border-brass/40 text-brass shadow-md shadow-brass/20">
+          <div className="flex items-center gap-2.5 mb-2">
+            <span className="p-2 rounded-xl bg-gradient-to-br from-brass/30 to-indigo border border-brass/50 text-brass shadow-lg shadow-brass/20">
               <GitCompare size={20} />
             </span>
-            <h1 className="font-hero text-3xl sm:text-4xl text-parchment">
-              Document Version Comparison
-            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-data-mono uppercase tracking-widest bg-brass/15 text-brass border border-brass/30">
+              Revision Comparator
+            </span>
           </div>
-          <p className="font-body text-fog text-sm sm:text-base max-w-2xl">
-            Compare two revisions of a technical manual and identify changed numerical values,
-            units, safety warnings, component labels, and tables with precise citations.
+          <h1 className="text-3xl sm:text-4xl text-parchment tracking-tight font-semibold">
+            Document Version <span className="font-serif italic font-normal text-[#e10600]">Comparison</span>
+          </h1>
+          <p className="font-body text-fog text-sm sm:text-base max-w-2xl mt-1.5 leading-relaxed">
+            Compare two revisions of technical manuals to identify numerical drift,
+            safety warnings, and table changes with coordinate-level citations.
           </p>
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full space-y-6 pb-12">
+      <main className="flex-1 max-w-5xl mx-auto w-full space-y-6 pb-12 relative z-10">
         {/* Document Selection Card */}
         <div className="bg-indigo/30 p-5 rounded-2xl border border-brass/20 shadow-xl backdrop-blur-sm">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
@@ -298,10 +305,10 @@ export function Compare() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg font-ui-label text-xs transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-xl font-ui-label text-xs transition-all ${
                     activeFilter === tab.id
-                      ? "bg-brass text-white font-semibold shadow-md shadow-brass/25"
-                      : "bg-ink/50 text-fog hover:text-parchment border border-fog/10"
+                      ? "btn-signal text-white font-semibold shadow-md shadow-brass/30 scale-[1.02]"
+                      : "bg-indigo text-fog hover:text-parchment border border-fog/15 hover:border-fog/30"
                   }`}
                 >
                   {tab.label}
@@ -310,7 +317,7 @@ export function Compare() {
             </div>
 
             {/* Change Items List */}
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {filteredChanges.length > 0 ? (
                 filteredChanges.map((change, idx) => (
                   <motion.div
@@ -318,12 +325,14 @@ export function Compare() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="p-5 rounded-2xl bg-ink/70 border border-fog/10 hover:border-brass/40 transition-all shadow-md space-y-3"
+                    className="p-5 rounded-2xl bg-indigo/85 border border-fog/15 hover:border-brass/50 transition-all duration-300 shadow-lg hover:shadow-[0_12px_36px_-10px_rgba(225,6,0,0.18)] space-y-3.5 backdrop-blur-md"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        {getCategoryIcon(change.category)}
-                        <span className="font-hero text-base text-parchment font-medium">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-ink/60 border border-fog/15">
+                          {getCategoryIcon(change.category)}
+                        </div>
+                        <span className="font-ui text-base text-parchment font-semibold">
                           {change.item}
                         </span>
                       </div>
@@ -333,11 +342,11 @@ export function Compare() {
                     </div>
 
                     {/* Old vs New Value Diff Box */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
                       {/* Old Value */}
-                      <div className="p-3 rounded-xl bg-rust/10 border border-rust/30 space-y-1">
-                        <div className="flex items-center justify-between text-[11px] font-ui-label uppercase tracking-wider text-rust">
-                          <span>Revision A (Previous)</span>
+                      <div className="p-3.5 rounded-xl bg-[#e10600]/8 border border-[#e10600]/25 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-ui-label uppercase tracking-wider text-[#e10600]">
+                          <span className="font-semibold">Revision A (Baseline)</span>
                           {change.page_old && (
                             <button
                               onClick={() =>
@@ -345,22 +354,22 @@ export function Compare() {
                                   `## Revision A Reference\n\n**Document:** ${result.doc_a}\n**Page:** ${change.page_old}\n\n**Item:** ${change.item}\n\n**Value:** ${change.old_value || "N/A"}\n\n${change.details || ""}`
                                 )
                               }
-                              className="hover:underline flex items-center gap-0.5"
+                              className="hover:underline flex items-center gap-0.5 text-fog hover:text-[#e10600] transition-colors"
                             >
                               Page {change.page_old} <ExternalLink size={10} />
                             </button>
                           )}
                         </div>
-                        <div className="font-data-mono text-sm text-parchment/80 line-through decoration-rust/70 break-words">
+                        <div className="font-data-mono text-sm text-parchment/70 line-through decoration-[#e10600]/80 break-words">
                           {change.old_value || "— Not Specified —"}
                         </div>
                       </div>
 
                       {/* New Value */}
-                      <div className="p-3 rounded-xl bg-moss/10 border border-moss/40 space-y-1">
-                        <div className="flex items-center justify-between text-[11px] font-ui-label uppercase tracking-wider text-moss">
-                          <span className="flex items-center gap-1">
-                            <ArrowRight size={12} /> Revision B (Updated)
+                      <div className="p-3.5 rounded-xl bg-ink/70 border border-fog/20 space-y-1.5 shadow-inner">
+                        <div className="flex items-center justify-between text-[11px] font-ui-label uppercase tracking-wider text-[#c0c0c0]">
+                          <span className="flex items-center gap-1 font-semibold text-parchment">
+                            <ArrowRight size={12} className="text-[#e10600]" /> Revision B (Updated)
                           </span>
                           {change.page_new && (
                             <button
@@ -369,13 +378,13 @@ export function Compare() {
                                   `## Revision B Reference\n\n**Document:** ${result.doc_b}\n**Page:** ${change.page_new}\n\n**Item:** ${change.item}\n\n**Value:** ${change.new_value || "N/A"}\n\n${change.details || ""}`
                                 )
                               }
-                              className="hover:underline flex items-center gap-0.5"
+                              className="hover:underline flex items-center gap-0.5 text-fog hover:text-parchment transition-colors"
                             >
                               Page {change.page_new} <ExternalLink size={10} />
                             </button>
                           )}
                         </div>
-                        <div className="font-data-mono text-sm text-parchment font-medium break-words">
+                        <div className="font-data-mono text-sm text-parchment font-semibold break-words">
                           {change.new_value || "— Removed / N/A —"}
                         </div>
                       </div>

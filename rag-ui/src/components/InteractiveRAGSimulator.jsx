@@ -15,11 +15,11 @@ import {
 import { API_BASE } from "../config";
 
 const TYPE_META = {
-  text: { label: "Text", icon: FileText, color: "text-cyan" },
-  table: { label: "Table", icon: TableIcon, color: "text-brass" },
-  figure: { label: "Figure", icon: ImageIcon, color: "text-violet" },
-  visual_page: { label: "Visual page", icon: ImageIcon, color: "text-violet" },
-  image: { label: "Image", icon: ImageIcon, color: "text-moss" },
+  text: { label: "Text", icon: FileText, color: "text-[#c0c0c0]" },
+  table: { label: "Table", icon: TableIcon, color: "text-[#e10600]" },
+  figure: { label: "Figure", icon: ImageIcon, color: "text-[#c0c0c0]" },
+  visual_page: { label: "Visual page", icon: ImageIcon, color: "text-[#c0c0c0]" },
+  image: { label: "Image", icon: ImageIcon, color: "text-[#e10600]" },
 };
 
 export function InteractiveRAGSimulator({ onLaunchChat }) {
@@ -72,9 +72,9 @@ export function InteractiveRAGSimulator({ onLaunchChat }) {
   };
 
   return (
-    <div className="w-full rounded-3xl glass-card border border-brass/25 shadow-2xl p-6 sm:p-8 relative overflow-hidden backdrop-blur-2xl">
-      <div className="absolute -top-24 -right-24 w-72 h-72 bg-brass/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-cyan/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="w-full rounded-3xl bg-indigo/90 border border-fog/20 shadow-2xl p-6 sm:p-8 relative overflow-hidden backdrop-blur-2xl">
+      <div className="absolute -top-24 -right-24 w-72 h-72 bg-brass/[0.08] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-parchment/[0.03] rounded-full blur-3xl pointer-events-none" />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-5 border-b border-fog/15 relative z-10">
         <div>
@@ -87,8 +87,8 @@ export function InteractiveRAGSimulator({ onLaunchChat }) {
               Live Retrieval Sandbox
             </span>
           </div>
-          <h3 className="font-hero text-xl sm:text-2xl text-parchment font-semibold">
-            Query Your Indexed Documents
+          <h3 className="text-xl sm:text-2xl text-parchment font-semibold tracking-tight">
+            Query Your <span className="font-serif italic font-normal text-[#e10600]">Indexed Documents</span>
           </h3>
           <p className="text-xs text-fog font-body mt-1">
             Runs the same vector retrieval used by DocuMind AI chat. Results are real chunks from
@@ -99,9 +99,9 @@ export function InteractiveRAGSimulator({ onLaunchChat }) {
         <button
           onClick={runRetrieval}
           disabled={loading || !query.trim() || documents.length === 0}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-indigo/70 hover:bg-indigo border border-fog/20 hover:border-brass/40 text-xs font-ui-label text-parchment transition-all active:scale-95 disabled:opacity-50"
+          className="btn-signal flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-ui-label text-white shadow-md shadow-brass/25 transition-all active:scale-95 disabled:opacity-50"
         >
-          <RefreshCw size={13} className={loading ? "animate-spin text-brass" : "text-fog"} />
+          <RefreshCw size={13} className={loading ? "animate-spin text-white" : "text-white"} />
           <span>{loading ? "Retrieving..." : "Run Retrieval"}</span>
         </button>
       </div>

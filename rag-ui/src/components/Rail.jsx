@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeSettings } from "./ThemeSettings";
 import { useUI } from "../context/UIContext";
+import { DocuMindLogo } from "./DocuMindLogo";
 
 export function Rail({ activeView, onNavigate, onOpenCommandPalette }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -45,14 +46,14 @@ export function Rail({ activeView, onNavigate, onOpenCommandPalette }) {
 
   return (
     <>
-      <nav className="w-full h-16 sm:w-16 sm:h-full border-t sm:border-t-0 sm:border-r border-fog/20 flex flex-row sm:flex-col items-center justify-around sm:justify-start sm:py-5 px-3 sm:px-0 gap-1.5 sm:gap-4 shrink-0 bg-[#2a2a2a] z-40 select-none shadow-xl">
+      <nav className="w-full h-16 sm:w-16 sm:h-full border-t sm:border-t-0 sm:border-r border-fog/10 flex flex-row sm:flex-col items-center justify-around sm:justify-start sm:py-5 px-3 sm:px-0 gap-1.5 sm:gap-4 shrink-0 bg-gradient-to-b from-[#222224] to-[#1c1c1e] z-40 select-none shadow-2xl shadow-black/40">
         {/* App Logo */}
         <button
           onClick={() => onNavigate("home")}
-          className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center mb-2 hidden sm:flex hover:scale-105 transition-transform ring-2 ring-brass/30 hover:ring-brass/70 shadow-md shadow-brass/15"
+          className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center mb-2 hidden sm:flex hover:scale-105 transition-transform shadow-md shadow-brass/15"
           title="DocuMind AI Home"
         >
-          <img src="/logo.svg" alt="DocuMind AI Logo" className="w-full h-full object-cover" />
+          <DocuMindLogo size={38} />
         </button>
 
         {/* Command Palette Trigger in Rail */}

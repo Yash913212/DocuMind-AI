@@ -235,15 +235,21 @@ export function StudyMode() {
 
   if (!isStudying) {
     return (
-      <div className="h-full flex flex-col p-6 sm:p-10 max-w-5xl mx-auto overflow-y-auto">
-        <header className="mb-8">
+      <div className="h-full flex flex-col p-6 sm:p-10 max-w-5xl mx-auto overflow-y-auto relative">
+        {/* Ambient Atmospheric Glows */}
+        <div className="absolute top-0 right-1/4 w-[600px] h-[400px] bg-brass/[0.05] rounded-full blur-[180px] pointer-events-none" />
+        <div className="absolute bottom-10 left-10 w-[500px] h-[400px] bg-parchment/[0.03] rounded-full blur-[180px] pointer-events-none" />
+
+        <header className="mb-8 relative z-10">
           <div className="flex items-center gap-2 mb-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-brass/15 text-brass text-xs font-data-mono border border-brass/30">
+            <span className="px-2.5 py-0.5 rounded-full bg-brass/15 text-brass text-xs font-data-mono border border-brass/30 uppercase tracking-widest">
               Active Recall Trainer
             </span>
           </div>
-          <h1 className="font-hero text-4xl text-parchment">Study Mode</h1>
-          <p className="font-body text-fog text-sm sm:text-base max-w-xl mt-1">
+          <h1 className="text-3xl sm:text-4xl text-parchment font-semibold tracking-tight">
+            Active Recall <span className="font-serif italic font-normal text-[#e10600]">Study Mode</span>
+          </h1>
+          <p className="font-body text-fog text-sm sm:text-base max-w-xl mt-1 leading-relaxed">
             Generate context-grounded flashcards directly from indexed manuals and specifications. Test retention of safety tolerances and operational guidelines.
           </p>
         </header>

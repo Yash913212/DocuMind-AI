@@ -347,17 +347,23 @@ export function Library() {
         </div>
       )}
 
+      {/* Atmospheric Ambient Glows */}
+      <div className="absolute top-0 right-1/4 w-[600px] h-[400px] bg-brass/[0.05] rounded-full blur-[180px] pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-[500px] h-[400px] bg-parchment/[0.03] rounded-full blur-[180px] pointer-events-none" />
+
       {/* Header */}
       <Reveal>
-      <header className="mb-8 flex flex-col sm:flex-row justify-between sm:items-end gap-4 pb-6 border-b border-fog/10">
+      <header className="mb-8 flex flex-col sm:flex-row justify-between sm:items-end gap-4 pb-6 border-b border-fog/10 relative z-10">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-brass/15 text-brass text-xs font-data-mono border border-brass/30">
+            <span className="px-2.5 py-0.5 rounded-full bg-brass/15 text-brass text-xs font-data-mono border border-brass/30 uppercase tracking-widest">
               Knowledge Repository
             </span>
           </div>
-          <h1 className="font-hero text-4xl text-parchment">Document Library</h1>
-          <p className="font-body text-fog text-sm sm:text-base max-w-xl mt-1">
+          <h1 className="text-3xl sm:text-4xl text-parchment font-semibold tracking-tight">
+            Engineering Document <span className="font-serif italic font-normal text-[#e10600]">Library</span>
+          </h1>
+          <p className="font-body text-fog text-sm sm:text-base max-w-xl mt-1 leading-relaxed">
             Multimodal document indexing with table preservation, page coordinate mapping, and vector search.
           </p>
         </div>
@@ -386,16 +392,16 @@ export function Library() {
 
       {/* Metrics Banner */}
       <Reveal delay={0.05}>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-8 relative z-10">
         {[
-          { label: "Total Documents", value: files.length, icon: Database, color: "text-brass" },
-          { label: "Total Pages", value: totalPages, icon: FileText, color: "text-cyan" },
-          { label: "Vector Chunks", value: totalChunks, icon: Layers, color: "text-violet" },
-          { label: "Extracted Tables", value: totalTables, icon: Table, color: "text-moss" },
+          { label: "Total Documents", value: files.length, icon: Database, color: "text-[#e10600]" },
+          { label: "Total Pages", value: totalPages, icon: FileText, color: "text-[#c0c0c0]" },
+          { label: "Vector Chunks", value: totalChunks, icon: Layers, color: "text-[#c0c0c0]" },
+          { label: "Extracted Tables", value: totalTables, icon: Table, color: "text-[#e10600]" },
         ].map((stat, i) => {
           const IconC = stat.icon;
           return (
-            <div key={i} className="holo-card p-4 rounded-xl glass-card flex items-center justify-between">
+            <div key={i} className="holo-card p-4 rounded-xl glass-card flex items-center justify-between border border-fog/15 hover:border-brass/40 transition-all duration-300">
               <div>
                 <div className="font-data-mono text-2xl font-bold text-parchment">
                   <CountUp value={stat.value} />
@@ -404,7 +410,7 @@ export function Library() {
                   {stat.label}
                 </div>
               </div>
-              <div className={`p-2.5 rounded-xl bg-ink/60 border border-fog/10 ${stat.color}`}>
+              <div className={`p-2.5 rounded-xl bg-ink/70 border border-fog/15 ${stat.color} shadow-sm`}>
                 <IconC size={20} />
               </div>
             </div>

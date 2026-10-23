@@ -38,6 +38,7 @@ import {
   clearAllSessions,
 } from "../utils/chatSessionStore";
 import { ConversationHistoryDrawer } from "../components/ConversationHistoryDrawer";
+import { DocuMindLogo } from "../components/DocuMindLogo";
 import { ConversationSummaryModal } from "../components/ConversationSummaryModal";
 
 function CitationChip({ id, sourceData, onClick }) {
@@ -532,7 +533,7 @@ export function Chat() {
         initial={reduceMotion ? false : { opacity: 0, y: -16, filter: "blur(8px)" }}
         animate={reduceMotion ? {} : { opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative overflow-hidden mb-4 sm:mb-6 shrink-0 max-w-4xl mx-auto w-full flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 sm:gap-4 bg-indigo/30 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-fog/15 shadow-lg"
+        className="relative overflow-hidden mb-4 sm:mb-6 shrink-0 max-w-5xl xl:max-w-6xl mx-auto w-full flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-indigo/85 backdrop-blur-2xl p-4 sm:p-5 sm:px-6 rounded-2xl border border-fog/15 shadow-[0_8px_30px_-5px_rgba(0,0,0,0.15)]"
       >
         <motion.div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brass/80 to-transparent"
@@ -541,31 +542,18 @@ export function Chat() {
           transition={{ duration: 4.5, repeat: Infinity, repeatDelay: 2.4, ease: "easeInOut" }}
           aria-hidden="true"
         />
-        <div className="flex items-center gap-3 min-w-0 w-full lg:flex-1">
-          <div className="relative w-10 h-10 rounded-xl bg-brass/10 border border-brass/30 flex items-center justify-center text-brass shadow-md shrink-0">
-            <motion.span
-              className="absolute inset-0 rounded-xl border border-brass/50"
-              animate={reduceMotion ? undefined : { scale: [1, 1.38], opacity: [0.55, 0] }}
-              transition={{ duration: 2.6, repeat: Infinity, ease: "easeOut" }}
-              aria-hidden="true"
-            />
-            <Compass size={20} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="font-hero text-xl text-parchment leading-tight">
-                DocuMind AI Chat
-              </h1>
-              <span className="text-[10px] font-data-mono px-2 py-0.5 rounded-full bg-brass/15 text-brass border border-brass/30">
-                v2.5
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-fog font-ui-label mt-1 min-w-0">
-              <span className="shrink-0">Grounding:</span>
+        <div className="flex items-center gap-3.5 min-w-0 shrink-0">
+          <DocuMindLogo size={42} />
+          <div className="min-w-0">
+            <h1 className="font-hero text-xl sm:text-2xl text-parchment leading-tight whitespace-nowrap tracking-tight">
+              DocuMind AI Chat
+            </h1>
+            <div className="flex items-center gap-2 text-xs text-fog font-ui-label mt-1">
+              <span className="shrink-0 text-fog/80">Grounding:</span>
               <select
                 value={activeDocument}
                 onChange={(e) => setActiveDocument(e.target.value)}
-                className="min-w-0 flex-1 lg:max-w-[320px] bg-ink/80 text-parchment border border-fog/20 rounded-lg px-2.5 py-1 text-xs font-data-mono focus:outline-none focus:border-brass cursor-pointer truncate"
+                className="max-w-[200px] sm:max-w-[280px] bg-ink/80 text-parchment border border-fog/20 rounded-lg px-2.5 py-1 text-xs font-data-mono focus:outline-none focus:border-brass cursor-pointer truncate"
               >
                 <option value="ALL">All Indexed Documents</option>
                 {allDocuments.map((doc) => (
@@ -586,7 +574,7 @@ export function Chat() {
             className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-data-mono flex flex-1 lg:flex-none items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-pointer transition-all whitespace-nowrap overflow-hidden relative ${
               privacyMode === "private"
                 ? "bg-brass/15 hover:bg-brass/25 text-brass border-brass/40 shadow-sm shadow-brass/20"
-                : "bg-white/5 hover:bg-white/10 text-parchment border-fog/30 shadow-sm"
+                : "bg-ink/60 hover:bg-ink text-parchment border-fog/20 shadow-sm"
             }`}
             title="Engine Privacy: Click to toggle between Local-First Private Mode and Hybrid Cloud Mode"
           >
@@ -710,12 +698,12 @@ export function Chat() {
 
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto space-y-6 sm:space-y-8 pb-28 sm:pb-36 pt-2 max-w-4xl mx-auto w-full pr-1 sm:pr-2"
+        className="flex-1 overflow-y-auto space-y-6 sm:space-y-8 pb-28 sm:pb-36 pt-2 max-w-5xl xl:max-w-6xl mx-auto w-full pr-1 sm:pr-2"
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center py-8">
-            <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-brass/25 to-indigo border border-brass/40 flex items-center justify-center text-brass shadow-2xl shadow-brass/20 mb-5 animate-light-float">
-              <Compass size={32} className="animate-spin-slow" />
+            <div className="mb-5 animate-light-float filter drop-shadow-[0_12px_30px_rgba(225,6,0,0.3)]">
+              <DocuMindLogo size={68} animate={true} />
             </div>
 
             <h2 className="font-hero text-2xl sm:text-3xl text-parchment mb-2 tracking-tight">
@@ -772,7 +760,7 @@ export function Chat() {
             )}
 
             {/* Curated Prompt Starter Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-3xl text-left mb-6">
               {[
                 {
                   icon: "📐",
@@ -850,8 +838,8 @@ export function Chat() {
               <div
                 className={`max-w-[90%] sm:max-w-[85%] font-body group ${
                   m.role === "user"
-                    ? "bg-gradient-to-br from-indigo to-indigo/80 text-parchment rounded-2xl rounded-tr-sm p-4 border border-brass/25 shadow-md"
-                    : "glass-card text-parchment p-5 rounded-2xl rounded-tl-sm border border-fog/15 shadow-xl w-full"
+                    ? "user-msg-bubble text-white rounded-2xl rounded-tr-sm p-4 w-auto"
+                    : "glass-card text-parchment p-5 rounded-2xl rounded-tl-sm border border-fog/15 shadow-md w-full"
                 }`}
               >
                 {m.role === "assistant" && (
@@ -1086,9 +1074,9 @@ export function Chat() {
       <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-ink via-ink/95 to-transparent pointer-events-none z-20">
         <form
           onSubmit={(e) => handleSubmit(e)}
-          className="max-w-4xl mx-auto relative pointer-events-auto"
+          className="max-w-5xl xl:max-w-6xl mx-auto relative pointer-events-auto"
         >
-          <div className="glass-card rounded-2xl border border-fog/20 focus-within:border-brass/70 focus-within:shadow-[0_0_25px_rgba(225,6,0,0.22)] transition-all overflow-hidden p-2.5 flex flex-col gap-2">
+          <div className="glass-card rounded-2xl border border-fog/12 focus-within:border-brass/60 focus-within:shadow-[0_0_30px_-3px_rgba(225,6,0,0.2),0_0_60px_-6px_rgba(225,6,0,0.08)] transition-all overflow-hidden p-2.5 flex flex-col gap-2">
             <div className="flex items-center gap-2 px-2 pt-1">
               <textarea
                 ref={textareaRef}
