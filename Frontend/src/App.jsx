@@ -15,27 +15,36 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { Toaster } from "react-hot-toast";
 import { CinematicLayer } from "./components/CinematicFX";
 import { PrivacyTransitionHUD } from "./components/PrivacyTransitionHUD";
+import { ThemeTransitionOverlay } from "./components/ThemeTransitionOverlay";
+
+const VALID_VIEWS = ["home", "chat", "library", "compare", "map", "study"];
 
 function AppContent() {
   const { inspectorOpen, inspectorContent, closeInspector } = useUI();
   const [activeView, setActiveView] = useState(() => {
     const hash = window.location.hash.replace("#", "").toLowerCase();
     const pathname = window.location.pathname.replace("/", "").toLowerCase();
-    return hash || pathname || "home";
+    if (VALID_VIEWS.includes(hash)) return hash;
+    if (VALID_VIEWS.includes(pathname)) return pathname;
+    return "home";
   });
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const reduceMotion = useReducedMotion();
 
   // Synchronize browser history / URL hash
   const navigateTo = (viewId) => {
-    setActiveView(viewId);
-    window.location.hash = viewId;
+    if (VALID_VIEWS.includes(viewId)) {
+      setActiveView(viewId);
+      window.location.hash = viewId;
+    }
   };
 
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "").toLowerCase();
-      if (hash) setActiveView(hash);
+      if (VALID_VIEWS.includes(hash)) {
+        setActiveView(hash);
+      }
     };
 
     window.addEventListener("hashchange", handleHashChange);
@@ -181,6 +190,7 @@ function AppContent() {
 
       <CinematicLayer />
       <PrivacyTransitionHUD />
+      <ThemeTransitionOverlay />
 
       {/* Inspector Slide-over Drawer */}
       <Inspector

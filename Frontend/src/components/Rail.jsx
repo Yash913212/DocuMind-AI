@@ -10,12 +10,12 @@ import {
   Globe,
   Lock,
   Search,
-  Command,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeSettings } from "./ThemeSettings";
 import { useUI } from "../context/UIContext";
 import { DocuMindLogo } from "./DocuMindLogo";
+import { API_BASE } from "../config";
 
 export function Rail({ activeView, onNavigate, onOpenCommandPalette }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -23,7 +23,7 @@ export function Rail({ activeView, onNavigate, onOpenCommandPalette }) {
   const { privacyMode, setPrivacyMode } = useUI();
 
   const fetchDocCount = () => {
-    fetch("/documents")
+    fetch(`${API_BASE}/documents`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setDocCount(data.length))
       .catch(() => {});

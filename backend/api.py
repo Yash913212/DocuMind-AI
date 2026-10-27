@@ -37,6 +37,7 @@ from backend.config import (
     RETRIEVAL_K,
     ENABLE_TECHNICAL_MODE,
     PAGE_IMAGES_DIR,
+    EMBEDDING_MODEL,
     get_privacy_mode,
     set_privacy_mode,
     is_private_mode,
@@ -1070,6 +1071,26 @@ async def analyze_nlp(request: NLPAnalyzeRequest):
     except Exception as e:
         logger.error(f"Error in NLP query analysis: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── System Architecture Telemetry Endpoint ──
+
+@app.get("/system/architecture")
+async def get_system_architecture():
+    """Get active enterprise AI pipeline configuration and component telemetry."""
+    from backend.retrieval.reranker import reranker
+    from backend.config import VECTOR_STORE_BACKEND, PGVECTOR_HOST, PGVECTOR_PORT, PGVECTOR_DB
+    return {
+        "vector_backend": db_manager.active_backend,
+        "configured_backend": VECTOR_STORE_BACKEND,
+        "pgvector_target": f"{PGVECTOR_HOST}:{PGVECTOR_PORT}/{PGVECTOR_DB}",
+        "pgvector_connected": bool(db_manager.pgvector and db_manager.pgvector.is_connected),
+        "embedding_model": EMBEDDING_MODEL,
+        "cross_encoder_model": reranker.model_name,
+        "cross_encoder_enabled": reranker.enabled,
+        "cross_encoder_top_n": reranker.top_n,
+        "privacy_mode": get_privacy_mode(),
+    }
 
 
 if __name__ == "__main__":

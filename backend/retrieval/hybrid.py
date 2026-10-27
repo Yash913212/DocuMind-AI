@@ -10,8 +10,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from langchain_core.documents import Document
 
-from backend.config import RETRIEVAL_K, RERANK_TOP_K, ENABLE_VISUAL_RETRIEVAL, ENABLE_TABLE_RETRIEVAL
+from backend.config import (
+    RETRIEVAL_K,
+    RERANK_TOP_K,
+    ENABLE_VISUAL_RETRIEVAL,
+    ENABLE_TABLE_RETRIEVAL,
+    CROSS_ENCODER_TOP_N,
+)
 from backend.database import db_manager
+from backend.retrieval.reranker import reranker
 
 logger = logging.getLogger(__name__)
 
@@ -206,10 +213,18 @@ class HybridRetriever:
         if not all_candidates:
             return []
 
-        # Fuse and re-rank
-        final_results = self._fuse_and_rerank(all_candidates, query_type)
+        # Fuse and heuristic re-rank across types and diversity
+        fused_candidates = self._fuse_and_rerank(all_candidates, query_type)
 
-        return final_results[:self.final_k]
+        # Cross-Encoder Reranking: Joint token-to-token cross-attention (bge-reranker-base)
+        # on the top-20 retrieved candidates before prompt stuffing
+        reranked_results = reranker.rerank(
+            query=query,
+            candidates=fused_candidates,
+            top_n=CROSS_ENCODER_TOP_N,
+        )
+
+        return reranked_results[:self.final_k]
 
     def _get_strategy(self, query_type: str) -> Dict[str, Any]:
         """Get retrieval parameters based on query type."""

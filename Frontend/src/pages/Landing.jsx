@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import {
   Sparkles,
   ArrowRight,
@@ -18,8 +18,18 @@ import {
   Search,
   Workflow,
   Brain,
+  Menu,
+  X,
+  Sun,
+  Moon,
+  Globe,
+  ChevronDown,
+  MessageSquare,
+  Map,
 } from "lucide-react";
 import { API_BASE } from "../config";
+import { useUI } from "../context/UIContext";
+import { useTheme } from "../context/ThemeContext";
 import { ParticleNeuralGlobe } from "../components/ParticleNeuralGlobe";
 import { InteractiveRAGSimulator } from "../components/InteractiveRAGSimulator";
 import { InteractiveRevisionDiffPreview } from "../components/InteractiveRevisionDiffPreview";
@@ -72,6 +82,13 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
     damping: 30,
     restDelta: 0.001,
   });
+  const { privacyMode, setPrivacyMode } = useUI();
+  const { themeMode, toggleTheme } = useTheme();
+  const [activeSection, setActiveSection] = useState("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const workspaceDropdownRef = useRef(null);
+
   const [libraryStats, setLibraryStats] = useState({
     documents: 0,
     pages: 0,
@@ -93,12 +110,93 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
       .catch(() => {});
   }, []);
 
+  // Close workspace dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(e.target)) {
+        setWorkspaceMenuOpen(false);
+      }
+    };
+    if (workspaceMenuOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [workspaceMenuOpen]);
+
+  // Track active section as user scrolls
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const sections = ["overview", "simulator", "nlp-lab", "features", "architecture"];
+    const handleScroll = () => {
+      const scrollPos = container.scrollTop + 140;
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const id = sections[i];
+        if (id === "overview" && container.scrollTop < 250) {
+          setActiveSection("overview");
+          break;
+        }
+        const el = document.getElementById(id);
+        if (el) {
+          const offsetTop = el.offsetTop;
+          if (scrollPos >= offsetTop) {
+            setActiveSection(id);
+            break;
+          }
+        }
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const navItems = [
+    { id: "overview", label: "Overview", icon: Compass },
+    { id: "simulator", label: "Simulator", icon: Terminal },
+    { id: "nlp-lab", label: "NLP Lab", icon: Brain },
+    { id: "features", label: "Capabilities", icon: Sparkles },
+    { id: "architecture", label: "Architecture", icon: Workflow },
+  ];
+
+  const workspaceItems = [
+    { id: "chat", label: "Chat & Reasoning", icon: MessageSquare, desc: "Multimodal RAG with page citations" },
+    { id: "library", label: "Document Library", icon: BookOpen, desc: "Ingest manuals, schematics & PDFs" },
+    { id: "compare", label: "Revision Diff", icon: GitCompare, desc: "Delta tracking & parameter drift" },
+    { id: "map", label: "Knowledge Map", icon: Map, desc: "3D force-directed knowledge atlas" },
+    { id: "study", label: "Study & Quiz", icon: Layers, desc: "Flashcard quiz & certification tests" },
+  ];
+
   const scrollToSection = (id) => {
-    if (onNavigate) {
-      onNavigate(id);
-    } else {
-      const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: "smooth" });
+    setMobileMenuOpen(false);
+    setWorkspaceMenuOpen(false);
+
+    if (["chat", "library", "compare", "map", "study"].includes(id)) {
+      if (onNavigate) onNavigate(id);
+      return;
+    }
+
+    if (id === "overview" || id === "top") {
+      containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      setActiveSection("overview");
+      return;
+    }
+
+    const el = document.getElementById(id);
+    if (el && containerRef.current) {
+      const headerOffset = 76;
+      const targetPosition =
+        el.getBoundingClientRect().top +
+        containerRef.current.scrollTop -
+        containerRef.current.getBoundingClientRect().top -
+        headerOffset;
+
+      containerRef.current.scrollTo({
+        top: Math.max(0, targetPosition),
+        behavior: "smooth",
+      });
+      setActiveSection(id);
     }
   };
 
@@ -167,90 +265,372 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
           }
           transition={{ duration: 23, repeat: Infinity, ease: "easeInOut" }}
         />
-        <div className="hero-scanbeam" />
       </div>
 
       {/* Top Floating Header */}
-      <header className="px-6 sm:px-12 py-4 flex justify-between items-center border-b border-fog/8 bg-ink/85 backdrop-blur-2xl sticky top-0 z-30 shadow-lg shadow-black/20">
-        <div className="flex items-center gap-3">
-          <DocuMindLogo size={40} animate={true} />
-          <div>
-            <div className="font-hero text-xl tracking-tight text-parchment">
-              DocuMind AI
+      <header className="px-3 sm:px-6 py-2.5 flex flex-col justify-center border-b border-fog/10 bg-ink/80 backdrop-blur-2xl sticky top-0 z-40 shadow-xl shadow-black/15 transition-all">
+        <div className="w-full flex items-center justify-between gap-2.5 sm:gap-4">
+          {/* Brand Logo & Title */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => scrollToSection("overview")}
+              className="flex items-center gap-2.5 group text-left cursor-pointer focus:outline-none"
+              title="Return to top"
+            >
+              <div className="relative flex items-center justify-center">
+                <DocuMindLogo size={34} animate={true} />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-brass border-2 border-ink animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-hero text-lg font-bold tracking-tight text-parchment group-hover:text-brass transition-colors">
+                    DocuMind AI
+                  </span>
+                </div>
+                <div className="text-[10px] font-ui-label text-fog uppercase tracking-wider hidden 2xl:block truncate max-w-[240px]">
+                  Multimodal Engineering Intelligence & 3D Atlas
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Center Navigation Bar (Desktop) */}
+          <nav className="hidden xl:flex items-center gap-0.5 px-1.5 py-1 rounded-full bg-indigo/70 backdrop-blur-xl border border-fog/15 shadow-inner">
+            {navItems.map((navItem) => {
+              const isActive = activeSection === navItem.id;
+              const Icon = navItem.icon;
+              return (
+                <button
+                  key={navItem.id}
+                  type="button"
+                  onClick={() => scrollToSection(navItem.id)}
+                  className={`relative px-3 py-1.5 rounded-full text-xs font-ui-label flex items-center gap-1.5 transition-all cursor-pointer ${
+                    isActive
+                      ? "text-parchment font-semibold shadow-sm"
+                      : "text-fog hover:text-parchment hover:bg-white/5"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-nav-pill"
+                      className="absolute inset-0 rounded-full bg-brass/15 border border-brass/45 shadow-[0_0_12px_rgba(225,6,0,0.25)]"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <Icon
+                    size={13}
+                    className={isActive ? "text-brass relative z-10" : "text-fog relative z-10"}
+                  />
+                  <span className="relative z-10">{navItem.label}</span>
+                </button>
+              );
+            })}
+
+            {/* Quick Workspace Modules Dropdown */}
+            <div className="relative" ref={workspaceDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
+                className={`relative px-3 py-1.5 rounded-full text-xs font-ui-label flex items-center gap-1.5 transition-all cursor-pointer ${
+                  workspaceMenuOpen
+                    ? "bg-white/10 text-parchment font-semibold"
+                    : "text-fog hover:text-parchment hover:bg-white/5"
+                }`}
+              >
+                <Layers size={13} className="text-brass" />
+                <span>Workspace</span>
+                <ChevronDown
+                  size={12}
+                  className={`transition-transform duration-200 ${
+                    workspaceMenuOpen ? "rotate-180 text-brass" : ""
+                  }`}
+                />
+              </button>
+
+              <AnimatePresence>
+                {workspaceMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                    transition={{ duration: 0.16 }}
+                    className="absolute top-full right-0 mt-2.5 w-64 p-2 rounded-2xl bg-indigo/95 backdrop-blur-2xl border border-fog/20 shadow-2xl z-50 flex flex-col gap-1"
+                  >
+                    <div className="px-2.5 py-1.5 text-[10px] font-data-mono uppercase text-fog tracking-wider border-b border-fog/10">
+                      Engineering Workspace Modules
+                    </div>
+                    {workspaceItems.map((wItem) => {
+                      const Icon = wItem.icon;
+                      return (
+                        <button
+                          key={wItem.id}
+                          type="button"
+                          onClick={() => scrollToSection(wItem.id)}
+                          className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all text-left group cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-brass/10 border border-brass/25 flex items-center justify-center text-brass group-hover:bg-brass group-hover:text-white transition-all shrink-0">
+                            <Icon size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-ui-label font-medium text-parchment group-hover:text-brass transition-colors flex items-center justify-between">
+                              <span>{wItem.label}</span>
+                              <ArrowRight
+                                size={11}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-brass"
+                              />
+                            </div>
+                            <div className="text-[10px] text-fog truncate">{wItem.desc}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            <div className="text-[10px] font-ui-label text-fog uppercase tracking-wider hidden sm:block">
-              Multimodal Engineering Intelligence & 3D Knowledge Atlas
-            </div>
+          </nav>
+
+          {/* Header Right Action Items */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Quick Search Shortcut */}
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo/60 hover:bg-indigo border border-fog/20 text-xs font-data-mono text-fog hover:text-parchment transition-all hover:border-brass/40 shadow-sm cursor-pointer"
+              title="Open Command Palette (⌘K)"
+            >
+              <Search size={13} className="text-brass" />
+              <span className="hidden sm:inline">Search</span>
+              <kbd className="hidden sm:inline px-1 py-0.2 rounded bg-ink/80 border border-fog/30 text-[10px] text-brass">
+                ⌘K
+              </kbd>
+            </button>
+
+            {/* Theme Switcher */}
+            <button
+              type="button"
+              onClick={(e) => toggleTheme(e)}
+              className="relative group w-8 h-8 flex items-center justify-center rounded-xl bg-indigo/60 hover:bg-indigo border border-fog/20 text-parchment hover:text-brass transition-all shadow-sm cursor-pointer overflow-hidden"
+              title={`Switch to ${themeMode === "light" ? "Dark (Charcoal Noir)" : "Light (Moonlit Silver)"} Mode`}
+            >
+              {/* Expanding micro-ring animation on click */}
+              <AnimatePresence>
+                <motion.span
+                  key={`theme-ring-${themeMode}`}
+                  initial={{ scale: 0.6, opacity: 0.8 }}
+                  animate={{ scale: 2.4, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="absolute inset-0 rounded-xl border border-brass pointer-events-none"
+                />
+              </AnimatePresence>
+
+              {/* Icon Morph Animation */}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={themeMode}
+                  initial={{ rotate: -90, scale: 0.4, opacity: 0 }}
+                  animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                  exit={{ rotate: 90, scale: 0.4, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 450, damping: 25 }}
+                >
+                  {themeMode === "light" ? (
+                    <Moon size={14} />
+                  ) : (
+                    <Sun size={14} className="text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </button>
+
+            {/* Privacy Engine Toggle */}
+            <button
+              type="button"
+              onClick={() => setPrivacyMode(privacyMode === "private" ? "normal" : "private")}
+              className={`hidden 2xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-data-mono border transition-all shadow-sm cursor-pointer ${
+                privacyMode === "private"
+                  ? "bg-brass/15 border-brass/40 text-brass hover:bg-brass/25 shadow-brass/20"
+                  : "bg-indigo/60 border-fog/20 text-parchment hover:bg-indigo"
+              }`}
+              title="Click to toggle Privacy Engine Mode"
+            >
+              {privacyMode === "private" ? (
+                <>
+                  <Lock size={12} className="text-brass" />
+                  <span className="font-semibold">Private</span>
+                </>
+              ) : (
+                <>
+                  <Globe size={12} className="text-fog" />
+                  <span className="text-fog">Cloud</span>
+                </>
+              )}
+            </button>
+
+            {/* Document Count Badge */}
+            {libraryStats.documents > 0 && (
+              <button
+                type="button"
+                onClick={() => scrollToSection("library")}
+                className="hidden 2xl:flex items-center gap-1.5 px-2 py-1.5 rounded-xl bg-indigo/50 hover:bg-indigo border border-fog/15 text-xs font-data-mono text-parchment hover:border-brass/30 transition-all cursor-pointer"
+                title="View Document Library"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-moss animate-pulse" />
+                <span>
+                  {libraryStats.documents} {libraryStats.documents === 1 ? "doc" : "docs"}
+                </span>
+              </button>
+            )}
+
+            {/* Launch Workspace Primary CTA */}
+            <button
+              type="button"
+              onClick={() => scrollToSection("chat")}
+              className="btn-signal group relative flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl font-ui-label text-white shadow-lg shadow-brass/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              <span className="font-semibold text-xs whitespace-nowrap">
+                Launch Workspace
+              </span>
+              <ArrowRight
+                size={13}
+                className="group-hover:translate-x-0.5 transition-transform shrink-0"
+              />
+            </button>
+
+            {/* Mobile Navigation Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="xl:hidden w-8 h-8 flex items-center justify-center rounded-xl bg-indigo/60 border border-fog/20 text-parchment hover:text-brass transition-all ml-0.5 cursor-pointer"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
           </div>
         </div>
 
-        {/* Center Quick Navigation Anchors */}
-        <div className="hidden md:flex items-center gap-5 text-xs font-ui-label text-fog">
-          <a
-            href="#simulator"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById("simulator")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="hover:text-parchment transition-colors"
-          >
-            Live Simulator
-          </a>
-          <a
-            href="#features"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="hover:text-parchment transition-colors"
-          >
-            Capabilities
-          </a>
-          <a
-            href="#architecture"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById("architecture")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="hover:text-parchment transition-colors"
-          >
-            Architecture
-          </a>
-        </div>
+        {/* Mobile & Tablet Full Navigation Sheet */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="xl:hidden w-full border-t border-fog/15 pt-3 mt-2.5 space-y-3.5 overflow-hidden"
+            >
+              {/* Mobile Section Links */}
+              <div>
+                <div className="text-[10px] font-data-mono uppercase text-fog tracking-wider mb-2">
+                  Page Sections
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {navItems.map((nItem) => {
+                    const Icon = nItem.icon;
+                    const isActive = activeSection === nItem.id;
+                    return (
+                      <button
+                        key={nItem.id}
+                        type="button"
+                        onClick={() => scrollToSection(nItem.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-ui-label transition-all cursor-pointer ${
+                          isActive
+                            ? "bg-brass/20 text-brass border border-brass/40 font-semibold"
+                            : "bg-white/5 text-parchment hover:bg-white/10"
+                        }`}
+                      >
+                        <Icon size={14} className={isActive ? "text-brass" : "text-fog"} />
+                        <span>{nItem.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-        {/* Header Right Action Items */}
-        <div className="flex items-center gap-3">
-          {/* Quick Search Shortcut */}
-          <button
-            onClick={onOpenCommandPalette}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo/60 hover:bg-indigo border border-fog/20 text-xs font-data-mono text-fog hover:text-parchment transition-all"
-            title="Press ⌘K for Command Palette"
-          >
-            <Search size={13} className="text-brass" />
-            <span>Search</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-ink border border-fog/30 text-[10px] text-brass">
-              ⌘K
-            </kbd>
-          </button>
+              {/* Mobile Workspace Modules */}
+              <div>
+                <div className="text-[10px] font-data-mono uppercase text-fog tracking-wider mb-2">
+                  Workspace Apps
+                </div>
+                <div className="space-y-1">
+                  {workspaceItems.map((wItem) => {
+                    const Icon = wItem.icon;
+                    return (
+                      <button
+                        key={wItem.id}
+                        type="button"
+                        onClick={() => scrollToSection(wItem.id)}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all text-xs font-ui-label text-parchment cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Icon size={15} className="text-brass" />
+                          <span>{wItem.label}</span>
+                        </div>
+                        <span className="text-[10px] text-fog font-data-mono truncate max-w-[150px]">
+                          {wItem.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-          {libraryStats.documents > 0 && (
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo/50 border border-fog/15 text-xs font-data-mono text-parchment">
-              <span className="w-2 h-2 rounded-full bg-moss animate-pulse" />
-              <span>
-                {libraryStats.documents} {libraryStats.documents === 1 ? "doc" : "docs"} indexed
-              </span>
-            </div>
+              {/* Mobile Bottom Quick Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-fog/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenCommandPalette();
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo/60 border border-fog/20 text-xs font-data-mono text-fog cursor-pointer"
+                >
+                  <Search size={13} className="text-brass" />
+                  <span>Search (⌘K)</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPrivacyMode(privacyMode === "private" ? "normal" : "private")
+                    }
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-data-mono border bg-indigo/60 border-fog/20 text-parchment cursor-pointer"
+                  >
+                    {privacyMode === "private" ? (
+                      <Lock size={12} className="text-brass" />
+                    ) : (
+                      <Globe size={12} className="text-fog" />
+                    )}
+                    <span>{privacyMode === "private" ? "Private" : "Cloud"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => toggleTheme(e)}
+                    className="relative w-8 h-8 flex items-center justify-center rounded-xl bg-indigo/60 border border-fog/20 text-parchment cursor-pointer overflow-hidden"
+                    title={`Switch to ${themeMode === "light" ? "Dark" : "Light"} Mode`}
+                  >
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.div
+                        key={themeMode}
+                        initial={{ rotate: -90, scale: 0.4, opacity: 0 }}
+                        animate={{ rotate: 0, scale: 1, opacity: 1 }}
+                        exit={{ rotate: 90, scale: 0.4, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 450, damping: 25 }}
+                      >
+                        {themeMode === "light" ? <Moon size={14} /> : <Sun size={14} className="text-amber-400" />}
+                      </motion.div>
+                    </AnimatePresence>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          <button
-            onClick={() => scrollToSection("chat")}
-            className="btn-signal flex items-center gap-2 px-4 py-2 rounded-xl font-ui-label text-white shadow-lg shadow-brass/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <span>Launch Workspace</span>
-            <ArrowRight size={15} />
-          </button>
-        </div>
-
+        {/* Scroll Reading Progress Bar */}
         <motion.div
           className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-gradient-to-r from-brass via-brass/55 to-transparent"
           style={{ scaleX: smoothProgress }}
@@ -260,7 +640,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
       {/* Main Hero Container */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 sm:px-12 lg:px-16 pt-10 sm:pt-14 pb-16 space-y-16 sm:space-y-24">
         {/* Top Hero Section */}
-        <div className="flex flex-col lg:flex-row items-center gap-10 sm:gap-14 relative">
+        <div id="overview" className="flex flex-col lg:flex-row items-center gap-10 sm:gap-14 relative scroll-mt-24">
           <motion.div
             className="w-full lg:w-[60%] z-10 space-y-6 pt-2"
             variants={container}
@@ -724,15 +1104,15 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
                 },
                 {
                   step: "02. Embed",
-                  title: "Dense & Sparse Index",
-                  desc: "MiniLM-L6-v2 vector embeddings stored in local ChromaDB + BM25 inverted index.",
+                  title: "pgvector & ChromaDB",
+                  desc: "MiniLM-L6-v2 vector embeddings indexed with HNSW cosine distance + BM25 inverted index.",
                   color: "text-cyan",
                   borderColor: "border-cyan/40",
                 },
                 {
                   step: "03. Rerank",
-                  title: "Reciprocal Rank Fusion",
-                  desc: "Merges semantic concepts with exact numerical part number matches (k = 60).",
+                  title: "Cross-Encoder (BGE)",
+                  desc: "BAAI/bge-reranker-base joint cross-attention on top-20 candidates eliminates false positives.",
                   color: "text-violet",
                   borderColor: "border-violet/40",
                 },
@@ -772,13 +1152,13 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
 
             {/* Quick Architecture Callout Footer */}
             <div className="pt-4 border-t border-fog/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-data-mono text-fog">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <span className="flex items-center gap-1 text-parchment">
-                  <Database size={13} className="text-cyan" /> ChromaDB Vector Store
+                  <Database size={13} className="text-cyan" /> pgvector / ChromaDB (HNSW)
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1 text-parchment">
-                  <Zap size={13} className="text-brass" /> Groq Fallback
+                  <Sparkles size={13} className="text-violet" /> BGE Cross-Encoder
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1 text-parchment">
@@ -787,7 +1167,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
               </div>
               <button
                 onClick={() => scrollToSection("library")}
-                className="text-brass hover:text-parchment flex items-center gap-1 font-semibold transition-colors"
+                className="text-brass hover:text-parchment flex items-center gap-1 font-semibold transition-colors shrink-0"
               >
                 <span>Upload a Technical Manual Now</span>
                 <ArrowRight size={13} />

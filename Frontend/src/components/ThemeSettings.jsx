@@ -6,9 +6,10 @@ import { useUI } from "../context/UIContext";
 import { API_BASE } from "../config";
 
 export function ThemeSettings({ isOpen, onClose }) {
-  const { themeMode, setThemeMode, accent, setAccent } = useTheme();
+  const { themeMode, triggerThemeTransition, accent, setAccent } = useTheme();
   const { privacyMode, setPrivacyMode, isModeLoading } = useUI();
   const [stats, setStats] = useState({ docs: 0, chunks: 0 });
+  const [vectorBackend, setVectorBackend] = useState("supabase");
 
   useEffect(() => {
     const fetchStats = () => {
@@ -20,6 +21,15 @@ export function ThemeSettings({ isOpen, onClose }) {
           setStats({ docs, chunks });
         })
         .catch(console.error);
+
+      fetch(`${API_BASE}/system/architecture`)
+        .then(res => (res.ok ? res.json() : null))
+        .then(arch => {
+          if (arch?.vector_backend) {
+            setVectorBackend(arch.vector_backend);
+          }
+        })
+        .catch(() => {});
     };
 
     if (isOpen) {
@@ -75,6 +85,15 @@ export function ThemeSettings({ isOpen, onClose }) {
                   <span className="font-data-mono text-sm text-parchment">{stats.chunks}</span>
                   <span className="font-ui-label text-[10px] text-fog uppercase tracking-widest mt-1">Chunks</span>
                 </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-fog/10 flex items-center justify-between text-xs">
+                <span className="text-fog flex items-center gap-1.5 font-ui-label text-[11px]">
+                  <Database size={12} className="text-brass" /> Vector DB
+                </span>
+                <span className="font-data-mono text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 font-semibold flex items-center gap-1.5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {vectorBackend === "supabase" ? "Supabase pgvector" : "ChromaDB Local"}
+                </span>
               </div>
             </div>
 
@@ -139,8 +158,8 @@ export function ThemeSettings({ isOpen, onClose }) {
               </div>
               <div className="flex bg-ink p-1 rounded-lg border border-fog/10">
                 <button
-                  onClick={() => setThemeMode("light")}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors ${
+                  onClick={(e) => triggerThemeTransition("light", e)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors cursor-pointer ${
                     themeMode === "light"
                       ? "bg-indigo text-brass shadow border border-brass/30 font-semibold"
                       : "text-fog hover:text-parchment"
@@ -149,8 +168,8 @@ export function ThemeSettings({ isOpen, onClose }) {
                   <Sun size={15} /> Moonlit Silver
                 </button>
                 <button
-                  onClick={() => setThemeMode("dark")}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors ${
+                  onClick={(e) => triggerThemeTransition("dark", e)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-ui-label text-xs transition-colors cursor-pointer ${
                     themeMode === "dark"
                       ? "bg-indigo text-brass shadow border border-brass/30 font-semibold"
                       : "text-fog hover:text-parchment"

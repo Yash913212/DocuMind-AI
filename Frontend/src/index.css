@@ -119,6 +119,8 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    transition: background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                color 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   html {
@@ -134,6 +136,8 @@
     letter-spacing: -0.012em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                color 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   /* Apple MacBook Typography Scale */
@@ -415,21 +419,7 @@
   }
 
   .hero-scanbeam {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: -10%;
-    height: 1.5px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(225, 6, 0, 0.5) 25%,
-      rgba(225, 6, 0, 0.8) 50%,
-      rgba(192, 192, 192, 0.3) 75%,
-      transparent
-    );
-    box-shadow: 0 0 24px rgba(225, 6, 0, 0.4), 0 0 60px rgba(225, 6, 0, 0.15);
-    animation: heroBeam 9s ease-in-out infinite;
+    display: none !important;
   }
 
   .cinematic-frame {

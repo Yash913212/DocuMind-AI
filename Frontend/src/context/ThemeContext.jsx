@@ -12,6 +12,8 @@ export function ThemeProvider({ children }) {
     return ["red", "silver"].includes(storedAccent) ? storedAccent : "red";
   });
 
+  const [themeTransition, setThemeTransition] = useState(null);
+
   useEffect(() => {
     localStorage.setItem("themeMode", themeMode);
     document.documentElement.setAttribute("data-theme", themeMode);
@@ -26,9 +28,40 @@ export function ThemeProvider({ children }) {
     );
   }, [accent]);
 
+  const triggerThemeTransition = (targetMode, e) => {
+    let origin = null;
+    if (e && e.clientX && e.clientY) {
+      origin = { x: e.clientX, y: e.clientY };
+    }
+    setThemeMode(targetMode);
+    setThemeTransition({
+      id: Date.now(),
+      mode: targetMode,
+      origin: origin || { x: typeof window !== "undefined" ? window.innerWidth - 80 : 300, y: 40 },
+    });
+  };
+
+  const toggleTheme = (e) => {
+    const nextMode = themeMode === "light" ? "dark" : "light";
+    triggerThemeTransition(nextMode, e);
+  };
+
+  const dismissThemeTransition = () => {
+    setThemeTransition(null);
+  };
+
   return (
     <ThemeContext.Provider
-      value={{ themeMode, setThemeMode, accent, setAccent }}
+      value={{
+        themeMode,
+        setThemeMode,
+        accent,
+        setAccent,
+        toggleTheme,
+        triggerThemeTransition,
+        themeTransition,
+        dismissThemeTransition,
+      }}
     >
       {children}
     </ThemeContext.Provider>

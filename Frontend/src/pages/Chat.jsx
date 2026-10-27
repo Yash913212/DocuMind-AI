@@ -723,7 +723,7 @@ export function Chat() {
 
   return (
     <div 
-      className="h-full flex flex-col py-4 sm:py-8 px-4 sm:px-8 relative w-full"
+      className="h-full flex flex-col py-3 sm:py-6 px-3 sm:px-6 relative w-full overflow-x-hidden"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -735,7 +735,7 @@ export function Chat() {
         initial={reduceMotion ? false : { opacity: 0, y: -10 }}
         animate={reduceMotion ? {} : { opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mb-4 sm:mb-6 shrink-0 max-w-6xl xl:max-w-7xl mx-auto w-full flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 bg-indigo/90 backdrop-blur-2xl p-4 sm:p-5 sm:px-6 rounded-2xl border border-fog/15 shadow-[0_8px_30px_-5px_rgba(0,0,0,0.18)]"
+        className="relative mb-4 sm:mb-6 shrink-0 max-w-6xl xl:max-w-7xl mx-auto w-full flex flex-col 2xl:flex-row justify-between items-stretch 2xl:items-center gap-3.5 bg-indigo/90 backdrop-blur-2xl p-3.5 sm:p-4 sm:px-5 rounded-2xl border border-fog/15 shadow-[0_8px_30px_-5px_rgba(0,0,0,0.18)]"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px overflow-hidden rounded-t-2xl">
           <motion.div
@@ -746,18 +746,18 @@ export function Chat() {
             aria-hidden="true"
           />
         </div>
-        <div className="flex items-center gap-3.5 min-w-0 shrink-0">
-          <DocuMindLogo size={42} />
+        <div className="flex items-center gap-3 min-w-0 shrink-0">
+          <DocuMindLogo size={40} />
           <div className="min-w-0">
-            <h1 className="font-hero text-xl sm:text-2xl text-parchment leading-tight whitespace-nowrap tracking-tight">
+            <h1 className="font-hero text-lg sm:text-xl text-parchment leading-tight whitespace-nowrap tracking-tight">
               DocuMind AI Chat
             </h1>
-            <div className="flex items-center gap-2 text-xs text-fog font-ui-label mt-1">
+            <div className="flex items-center gap-2 text-xs text-fog font-ui-label mt-0.5">
               <span className="shrink-0 text-fog/80">Grounding:</span>
               <select
                 value={activeDocument}
                 onChange={(e) => handleActiveDocumentChange(e.target.value)}
-                className="max-w-[200px] sm:max-w-[280px] bg-ink/80 text-parchment border border-fog/20 rounded-lg px-2.5 py-1 text-xs font-data-mono focus:outline-none focus:border-brass cursor-pointer truncate"
+                className="max-w-[180px] sm:max-w-[240px] 2xl:max-w-[280px] bg-ink/80 text-parchment border border-fog/20 rounded-lg px-2.5 py-1 text-xs font-data-mono focus:outline-none focus:border-brass cursor-pointer truncate"
               >
                 <option value="ALL">All Indexed Documents</option>
                 {allDocuments.map((doc) => (
@@ -770,12 +770,12 @@ export function Chat() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full xl:w-auto justify-start xl:justify-end shrink-0">
+        <div className="flex flex-wrap items-center gap-2 w-full 2xl:w-auto justify-start sm:justify-end min-w-0 shrink-0">
           {/* Privacy Engine Mode (Click to Toggle) */}
           <button
             type="button"
             onClick={() => setPrivacyMode(privacyMode === "private" ? "normal" : "private")}
-            className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-data-mono flex flex-1 xl:flex-none items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-pointer transition-all whitespace-nowrap overflow-hidden relative ${
+            className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-data-mono flex flex-1 sm:flex-none items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-pointer transition-all whitespace-nowrap overflow-hidden relative ${
               privacyMode === "private"
                 ? "bg-brass/15 hover:bg-brass/25 text-brass border-brass/40 shadow-sm shadow-brass/20"
                 : "bg-ink/60 hover:bg-ink text-parchment border-fog/20 shadow-sm"
@@ -810,7 +810,7 @@ export function Chat() {
 
           {/* Technical Mode Switch */}
           <div
-            className="h-9 px-2.5 sm:px-3 rounded-xl bg-ink/70 border border-fog/15 flex flex-1 xl:flex-none items-center justify-center gap-2 sm:gap-2.5 shadow-sm whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3 rounded-xl bg-ink/70 border border-fog/15 flex flex-1 sm:flex-none items-center justify-center gap-2 sm:gap-2.5 shadow-sm whitespace-nowrap"
             title="Constrains output to strict numerical matches and page citations"
           >
             <span className="font-ui text-[10px] sm:text-xs text-fog uppercase tracking-wider font-medium">
@@ -833,7 +833,7 @@ export function Chat() {
           </div>
 
           {/* Subtle Vertical Divider */}
-          <div className="w-px h-6 bg-fog/20 hidden xl:block mx-0.5 shrink-0" />
+          <div className="w-px h-6 bg-fog/20 hidden sm:block mx-0.5 shrink-0" />
 
           {/* Past Conversations Drawer Toggle */}
           <motion.button
@@ -842,7 +842,7 @@ export function Chat() {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             onClick={() => setIsHistoryOpen(true)}
-            className="h-9 px-2.5 sm:px-3 rounded-xl bg-ink/70 hover:bg-ink text-parchment border border-fog/20 hover:border-brass/40 text-xs font-ui-label font-medium flex flex-1 xl:flex-none items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3 rounded-xl bg-ink/70 hover:bg-ink text-parchment border border-fog/20 hover:border-brass/40 text-xs font-ui-label font-medium flex flex-1 sm:flex-none items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap"
             title="Open saved past conversations"
           >
             <Clock size={14} className="text-brass shrink-0" />
@@ -861,7 +861,7 @@ export function Chat() {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             onClick={() => setIsSummaryModalOpen(true)}
-            className="h-9 px-2.5 sm:px-3 rounded-xl bg-brass/15 hover:bg-brass text-brass hover:text-white border border-brass/40 text-xs font-ui-label font-semibold flex flex-1 xl:flex-none items-center justify-center gap-1.5 shadow-sm shadow-brass/20 transition-all cursor-pointer whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3 rounded-xl bg-brass/15 hover:bg-brass text-brass hover:text-white border border-brass/40 text-xs font-ui-label font-semibold flex flex-1 sm:flex-none items-center justify-center gap-1.5 shadow-sm shadow-brass/20 transition-all cursor-pointer whitespace-nowrap"
             title="Summarize all past conversations and extract cross-document insights"
           >
             <Sparkles size={14} className="shrink-0" />

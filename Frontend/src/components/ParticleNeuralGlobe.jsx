@@ -113,10 +113,10 @@ function NeuralLattice() {
         />
       </Points>
 
-      {/* Orbit Ring 1 (Signal Red Orbital Track) */}
+      {/* Orbit Ring 1 (Moonlit Track) */}
       <mesh ref={ringRef} rotation={[Math.PI / 3, 0, 0]}>
-        <torusGeometry args={[2.7, 0.012, 12, 48]} />
-        <meshBasicMaterial color="#e10600" transparent opacity={0.5} />
+        <torusGeometry args={[2.7, 0.008, 12, 48]} />
+        <meshBasicMaterial color="#c0c0c0" transparent opacity={0.2} />
       </mesh>
 
       {/* Orbit Ring 2 (Moonlit Silver Track) */}

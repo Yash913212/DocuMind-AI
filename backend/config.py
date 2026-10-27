@@ -48,6 +48,31 @@ LLM_FALLBACK_1 = os.environ.get("LLM_FALLBACK_1", "openai/gpt-oss-120b")
 LLM_FALLBACK_2 = os.environ.get("LLM_FALLBACK_2", "openai/gpt-oss-20b")
 USE_ONLY_OLLAMA = os.environ.get("USE_ONLY_OLLAMA", "true").lower() == "true"
 
+# ── Cross-Encoder Reranker ──
+ENABLE_CROSS_ENCODER = os.environ.get("ENABLE_CROSS_ENCODER", "true").lower() == "true"
+CROSS_ENCODER_MODEL = os.environ.get("CROSS_ENCODER_MODEL", "BAAI/bge-reranker-base")
+CROSS_ENCODER_TOP_N = int(os.environ.get("CROSS_ENCODER_TOP_N", "20"))
+
+# ── Vector Store Configuration (ChromaDB vs pgvector / Supabase) ──
+# "supabase" = Supabase pgvector cloud, "pgvector" = PostgreSQL with pgvector, "chroma" = local ChromaDB
+VECTOR_STORE_BACKEND = os.environ.get("VECTOR_STORE_BACKEND", "supabase").lower()
+
+# Supabase pgvector parameters
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_SECRET_KEY") or os.environ.get("SUPABASE_KEY", "")
+
+# pgvector parameters
+PGVECTOR_HOST = os.environ.get("PGVECTOR_HOST", "localhost")
+PGVECTOR_PORT = int(os.environ.get("PGVECTOR_PORT", "5432"))
+PGVECTOR_USER = os.environ.get("PGVECTOR_USER", "postgres")
+PGVECTOR_PASSWORD = os.environ.get("PGVECTOR_PASSWORD", "postgres")
+PGVECTOR_DB = os.environ.get("PGVECTOR_DB", "documind")
+PGVECTOR_TABLE = os.environ.get("PGVECTOR_TABLE", "documents")
+PGVECTOR_URL = os.environ.get(
+    "PGVECTOR_URL",
+    f"postgresql://{PGVECTOR_USER}:{PGVECTOR_PASSWORD}@{PGVECTOR_HOST}:{PGVECTOR_PORT}/{PGVECTOR_DB}",
+)
+
 # ── ChromaDB Configuration ──
 CHROMA_DB_DIR = os.path.join(DATA_DIR, "chroma_db")
 os.makedirs(CHROMA_DB_DIR, exist_ok=True)

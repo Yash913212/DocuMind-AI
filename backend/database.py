@@ -1,12 +1,16 @@
 """
-ChromaDB database operations for the multimodal RAG system.
-Handles vectorstore initialization, document storage, and visual page management.
+Unified Vector Database Management for DocuMind AI.
+
+Supports:
+- Supabase pgvector (Direct cloud PostgreSQL with HNSW indexing and visual Table Editor)
+- Local PostgreSQL pgvector
+- ChromaDB (Local filesystem fallback)
 """
 
 import json
 import logging
-import uuid
 import os
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 from langchain_chroma import Chroma
@@ -16,31 +20,68 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from backend.config import (
     EMBEDDING_MODEL,
     CHROMA_DB_DIR,
+    VECTOR_STORE_BACKEND,
+    SUPABASE_URL,
+    SUPABASE_KEY,
 )
+from backend.vectorstore.pgvector_store import PGVectorStore
+from backend.vectorstore.supabase_store import SupabaseVectorStore
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Manages all ChromaDB interactions for the RAG system."""
+    """
+    Manages vector storage interactions for the RAG system.
+    Routes between Supabase pgvector, local PostgreSQL pgvector, and ChromaDB.
+    """
 
     def __init__(self):
         self.vectorstore: Optional[Chroma] = None
+        self.supabase: Optional[SupabaseVectorStore] = None
+        self.pgvector: Optional[PGVectorStore] = None
         self.embedding = None
+        self.active_backend: str = "chroma"
         self._initialized = False
 
     def initialize(self):
-        """Initialize ChromaDB vectorstore."""
+        """Initialize embedding model and the active vector store."""
         if self._initialized:
             return
 
-        logger.info("Initializing ChromaDB connection...")
-        logger.info(f"Using local CPU embeddings with lightweight model: {EMBEDDING_MODEL}")
+        logger.info(f"Initializing embedding model: {EMBEDDING_MODEL} (device: cpu)...")
         self.embedding = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL,
-            model_kwargs={'device': 'cpu'}
+            model_kwargs={'device': 'cpu'},
         )
 
+        connected = False
+
+        # 1. Prioritize Supabase pgvector if credentials are configured
+        if VECTOR_STORE_BACKEND in ("supabase", "pgvector") and SUPABASE_URL and SUPABASE_KEY:
+            logger.info("Initializing Supabase pgvector cloud connection...")
+            self.supabase = SupabaseVectorStore()
+            connected = self.supabase.initialize(embedding_function=self.embedding)
+            if connected:
+                self.active_backend = "supabase"
+                logger.info(">>> Active Vector Engine: Supabase pgvector (Cloud HNSW Index) <<<")
+
+        # 2. Try direct PostgreSQL pgvector if Supabase is not active
+        if not connected and VECTOR_STORE_BACKEND == "pgvector":
+            logger.info("Attempting local PostgreSQL pgvector store initialization...")
+            self.pgvector = PGVectorStore()
+            connected = self.pgvector.initialize(embedding_function=self.embedding)
+            if connected:
+                self.active_backend = "pgvector"
+                logger.info(">>> Active Vector Engine: pgvector (PostgreSQL with HNSW indexing) <<<")
+
+        # 3. Fallback to ChromaDB
+        if not connected:
+            self.active_backend = "chroma"
+            logger.info(">>> Active Vector Engine: ChromaDB (Local fallback) <<<")
+
+        # Always initialize ChromaDB as local persistent backup
+        logger.info(f"Connecting to ChromaDB store at {CHROMA_DB_DIR}...")
         self.vectorstore = Chroma(
             collection_name="documents",
             embedding_function=self.embedding,
@@ -48,12 +89,28 @@ class DatabaseManager:
         )
 
         self._initialized = True
-        logger.info("ChromaDB connection initialized.")
+        logger.info(f"Vector Database Manager ready (Backend: {self.active_backend.upper()}).")
+
+    def _get_active_store(self):
+        if self.active_backend == "supabase" and self.supabase and self.supabase.is_connected:
+            return self.supabase
+        if self.active_backend == "pgvector" and self.pgvector and self.pgvector.is_connected:
+            return self.pgvector
+        return None
 
     def add_documents(self, documents: List[Document], ids: Optional[List[str]] = None) -> List[str]:
         """Add documents to the vectorstore with embeddings."""
         if ids is None:
             ids = [str(uuid.uuid4()) for _ in documents]
+
+        active_store = self._get_active_store()
+        if active_store:
+            try:
+                active_store.add_documents(documents, ids=ids)
+            except Exception as e:
+                logger.warning(f"Writing to {self.active_backend} failed: {e}. Writing to ChromaDB fallback.")
+
+        # Always write to local ChromaDB for local redundancy
         self.vectorstore.add_documents(documents, ids=ids)
         return ids
 
@@ -64,6 +121,15 @@ class DatabaseManager:
         filter_dict: Optional[Dict] = None,
     ) -> List[Tuple[Document, float]]:
         """Search for similar documents with relevance scores."""
+        active_store = self._get_active_store()
+        if active_store:
+            try:
+                results = active_store.similarity_search(query, k=k, filter_dict=filter_dict)
+                if results:
+                    return results
+            except Exception as e:
+                logger.warning(f"{self.active_backend} search error: {e}. Falling back to ChromaDB.")
+
         kwargs = {"k": k}
         if filter_dict:
             kwargs["filter"] = filter_dict
@@ -80,19 +146,28 @@ class DatabaseManager:
 
     def get_document_chunks(self, document_name: str) -> List[Dict]:
         """Get all chunks for a specific document."""
+        active_store = self._get_active_store()
+        if active_store:
+            try:
+                chunks = active_store.get_document_chunks(document_name)
+                if chunks:
+                    return chunks
+            except Exception as e:
+                logger.warning(f"{self.active_backend} get_document_chunks failed: {e}. Using ChromaDB.")
+
         try:
             results = self.vectorstore.get(include=["metadatas", "documents"])
             chunks = []
             metadatas = results.get("metadatas", [])
             documents = results.get("documents", [])
             ids = results.get("ids", [])
-            
+
             for i, meta in enumerate(metadatas):
                 if meta and (meta.get("source", "").endswith(document_name) or meta.get("document_name") == document_name):
                     chunks.append({
                         "id": ids[i],
                         "content": documents[i] if documents else "",
-                        "metadata": meta
+                        "metadata": meta,
                     })
             return chunks
         except Exception as e:
@@ -101,6 +176,15 @@ class DatabaseManager:
 
     def get_all_chunks(self) -> List[Dict]:
         """Get all indexed chunks without loading embeddings."""
+        active_store = self._get_active_store()
+        if active_store:
+            try:
+                chunks = active_store.get_all_chunks()
+                if chunks:
+                    return chunks
+            except Exception as e:
+                logger.warning(f"{self.active_backend} get_all_chunks failed: {e}. Using ChromaDB.")
+
         try:
             results = self.vectorstore.get(include=["metadatas", "documents"])
             metadatas = results.get("metadatas", [])
@@ -119,7 +203,16 @@ class DatabaseManager:
             return []
 
     def get_all_with_embeddings(self) -> Dict[str, List]:
-        """Get all documents with their embeddings for visualization."""
+        """Get all documents with their embeddings for 3D PCA visualization."""
+        active_store = self._get_active_store()
+        if active_store:
+            try:
+                data = active_store.get_all_with_embeddings()
+                if data and data.get("embeddings"):
+                    return data
+            except Exception as e:
+                logger.warning(f"{self.active_backend} get_all_with_embeddings failed: {e}. Using ChromaDB.")
+
         try:
             results = self.vectorstore.get(include=["embeddings", "metadatas", "documents"])
             return {
@@ -135,25 +228,40 @@ class DatabaseManager:
     def delete_document(self, document_name: str) -> int:
         """Delete all chunks for a document. Returns count of deleted chunks."""
         deleted = 0
+        active_store = self._get_active_store()
+        if active_store:
+            try:
+                deleted = active_store.delete_document(document_name)
+            except Exception as e:
+                logger.warning(f"{self.active_backend} delete_document failed: {e}")
+
         try:
             results = self.vectorstore.get(include=["metadatas"])
             ids_to_delete = []
             metadatas = results.get("metadatas", [])
             ids = results.get("ids", [])
-            
+
             for i, meta in enumerate(metadatas):
                 if meta and (meta.get("source", "").endswith(document_name) or meta.get("document_name") == document_name):
                     ids_to_delete.append(ids[i])
-                    
+
             if ids_to_delete:
                 self.vectorstore.delete(ids=ids_to_delete)
-                deleted = len(ids_to_delete)
+                if deleted == 0:
+                    deleted = len(ids_to_delete)
         except Exception as e:
-            logger.error(f"Error deleting document: {e}")
+            logger.error(f"Error deleting document from ChromaDB: {e}")
         return deleted
 
     def clear_all(self):
         """Delete all documents from the database."""
+        active_store = self._get_active_store()
+        if active_store:
+            try:
+                active_store.clear_all()
+            except Exception as e:
+                logger.warning(f"{self.active_backend} clear_all failed: {e}")
+
         try:
             results = self.vectorstore.get(include=[])
             ids = results.get("ids", [])
