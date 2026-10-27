@@ -267,10 +267,15 @@ export function ConversationHistoryDrawer({
                             </div>
                           )}
 
-                          <div className="flex items-center gap-2 mt-1 text-[11px] font-data-mono text-fog">
+                          <div className="flex items-center gap-2 mt-1 text-[11px] font-data-mono text-fog flex-wrap">
                             <span>{formatRelativeTime(session.updatedAt || session.createdAt)}</span>
                             <span>&middot;</span>
                             <span>{userCount} query{userCount === 1 ? "" : "s"}</span>
+                            {session.privacyMode === "private" && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.2 rounded-full bg-brass/20 text-brass border border-brass/30 font-semibold">
+                                🔒 Private
+                              </span>
+                            )}
                             {session.document && session.document !== "ALL" && (
                               <>
                                 <span>&middot;</span>

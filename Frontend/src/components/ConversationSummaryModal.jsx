@@ -341,10 +341,10 @@ export function ConversationSummaryModal({
                 {activeTab === "synthesis" && (
                   <motion.div 
                     key="tab-synthesis"
-                    initial={{ opacity: 0, y: 10, filter: "blur(3px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, y: -10, filter: "blur(3px)" }}
-                    transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     className="space-y-6"
                   >
                     {/* Live Deep AI Synthesis Box if active or present */}
@@ -440,10 +440,10 @@ export function ConversationSummaryModal({
                 {activeTab === "sessions" && (
                   <motion.div
                     key="tab-sessions"
-                    initial={{ opacity: 0, y: 10, filter: "blur(3px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, y: -10, filter: "blur(3px)" }}
-                    transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     className="space-y-4"
                   >
                     {summaryData.sessionsList.map((session) => (
@@ -506,10 +506,10 @@ export function ConversationSummaryModal({
                 {activeTab === "sources" && (
                   <motion.div
                     key="tab-sources"
-                    initial={{ opacity: 0, y: 10, filter: "blur(3px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, y: -10, filter: "blur(3px)" }}
-                    transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     className="space-y-4"
                   >
                     {summaryData.uniqueDocs.length === 0 ? (

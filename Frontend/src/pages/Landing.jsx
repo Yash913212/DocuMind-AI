@@ -111,12 +111,11 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
   };
 
   const item = {
-    hidden: { opacity: 0, y: 28, filter: "blur(10px)" },
+    hidden: { opacity: 0, y: 16 },
     show: {
       opacity: 1,
       y: 0,
-      filter: "blur(0px)",
-      transition: { ease: [0.22, 1, 0.36, 1], duration: 0.8 },
+      transition: { ease: [0.22, 1, 0.36, 1], duration: 0.5 },
     },
   };
 
@@ -376,17 +375,15 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
 
           {/* 3D Fibonacci Particle Neural Globe inside Architectural Arch Frame */}
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.95, filter: "blur(14px)" }}
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
             animate={
               reduceMotion
                 ? {}
-                : { opacity: 1, scale: 1, filter: "blur(0px)", y: [0, -10, 0] }
+                : { opacity: 1, scale: 1 }
             }
             transition={{
-              opacity: { duration: 0.9, delay: 0.3 },
-              scale: { duration: 1.1, delay: 0.25, ease: [0.22, 1, 0.36, 1] },
-              filter: { duration: 0.9, delay: 0.3 },
-              y: { duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1.2 },
+              opacity: { duration: 0.5, delay: 0.15 },
+              scale: { duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] },
             }}
             className="w-full lg:w-[40%] h-[400px] sm:h-[480px] lg:h-[540px] relative rounded-t-[140px] rounded-b-3xl overflow-hidden bg-gradient-to-b from-[#1e1e20] to-[#161618] border border-fog/15 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.6),0_0_40px_-5px_rgba(225,6,0,0.08)] flex items-center justify-center group cinematic-frame"
           >
@@ -804,10 +801,8 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
         <Reveal amount={0.12}>
         <section className="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-[#2a2a2d]/95 via-ink to-[#2a2a2d]/85 border border-brass/25 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5),0_0_30px_-5px_rgba(225,6,0,0.08)] relative overflow-hidden text-center space-y-5">
           <div className="absolute inset-0 cta-grid opacity-50 pointer-events-none" aria-hidden="true" />
-          <motion.div
-            className="absolute -right-20 -top-24 h-80 w-80 rounded-full bg-brass/20 blur-[100px] pointer-events-none"
-            animate={reduceMotion ? undefined : { x: [0, -34, 14, 0], y: [0, 22, -12, 0], scale: [1, 1.2, 1.06, 1] }}
-            transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
+          <div
+            className="absolute -right-20 -top-24 h-80 w-80 rounded-full bg-brass/15 blur-[60px] pointer-events-none"
             aria-hidden="true"
           />
           <div className="max-w-2xl mx-auto space-y-3 relative z-10">

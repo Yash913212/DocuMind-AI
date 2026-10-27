@@ -1,0 +1,23 @@
+{
+  "name": "documind-ai",
+  "version": "2.0.0",
+  "description": "DocuMind AI — Multimodal Engineering Document Intelligence",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd Frontend && npm run dev",
+    "dev:backend": "venv/bin/uvicorn api:app --reload --host 0.0.0.0 --port 8000",
+    "build:frontend": "cd Frontend && npm run build",
+    "lint:frontend": "cd Frontend && npm run lint",
+    "start": "venv/bin/uvicorn api:app --host 0.0.0.0 --port 8000"
+  },
+  "keywords": [
+    "multimodal-rag",
+    "fastapi",
+    "react19",
+    "threejs",
+    "ollama",
+    "chromadb"
+  ],
+  "author": "DocuMind AI Engineering Team",
+  "license": "MIT"
+}

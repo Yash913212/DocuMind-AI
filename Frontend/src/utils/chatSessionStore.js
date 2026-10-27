@@ -5,6 +5,8 @@
  * session auto-titling, and multi-session analytical synthesis.
  */
 
+import { API_BASE } from "../config";
+
 const STORAGE_KEY = "documind_chat_sessions_v1";
 const ACTIVE_SESSION_KEY = "documind_active_session_id_v1";
 
@@ -89,6 +91,7 @@ export function saveSession(session) {
       ...session,
       title: title || "Engineering Inquiry",
       updatedAt: new Date().toISOString(),
+      privacyMode: session.privacyMode || "normal",
       messages: session.messages || [],
     };
 
@@ -109,7 +112,7 @@ export function saveSession(session) {
 /**
  * Create a new session and make it active
  */
-export function createNewSession({ title = "New Conversation", document = "ALL", technicalMode = true } = {}) {
+export function createNewSession({ title = "New Conversation", document = "ALL", technicalMode = true, privacyMode = "normal" } = {}) {
   const newSession = {
     id: generateSessionId(),
     title,
@@ -117,6 +120,7 @@ export function createNewSession({ title = "New Conversation", document = "ALL",
     updatedAt: new Date().toISOString(),
     document: document || "ALL",
     technicalMode: technicalMode ?? true,
+    privacyMode: privacyMode || "normal",
     messages: [],
   };
 
@@ -334,4 +338,81 @@ export function generateAllSessionsSummary(sessions = []) {
     sessionsList: sessionsSummaryList,
     markdownReport,
   };
+}
+
+/**
+ * Find or create a session dedicated to a specific document.
+ * If an existing session for this document in the active privacyMode exists, activate and return it.
+ * Otherwise, initialize a dedicated document session and return it.
+ */
+export function findOrCreateDocumentSession(documentName, privacyMode = "normal") {
+  const normMode = privacyMode || "normal";
+  if (!documentName || documentName === "ALL") {
+    const sessions = getStoredSessions();
+    const general = sessions.find((s) => (s.document === "ALL" || !s.document) && (s.privacyMode || "normal") === normMode);
+    if (general) {
+      setActiveSessionId(general.id);
+      return general;
+    }
+    return createNewSession({ title: normMode === "private" ? "Air-Gapped Private Session" : "General Inquiry", document: "ALL", privacyMode: normMode });
+  }
+
+  const sessions = getStoredSessions();
+  const existing = sessions.find(
+    (s) => s.document === documentName && (s.privacyMode || "normal") === normMode
+  );
+
+  if (existing) {
+    setActiveSessionId(existing.id);
+    return existing;
+  }
+
+  const cleanTitle = documentName.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+  const newSession = createNewSession({
+    title: `Inquiry: ${cleanTitle}`,
+    document: documentName,
+    technicalMode: true,
+    privacyMode: normMode,
+  });
+  return newSession;
+}
+
+/**
+ * Open chat focused on a specific document from Document Library or inspection modal.
+ * Syncs any server-side recorded past queries and activates the document session.
+ */
+export async function openDocumentChat(documentName, privacyMode = "normal") {
+  const session = findOrCreateDocumentSession(documentName, privacyMode);
+
+  // Background sync with server-side document conversations if local has 0 messages
+  if (documentName && documentName !== "ALL" && (!session.messages || session.messages.length === 0)) {
+    try {
+      const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(documentName)}/conversations`);
+      if (res.ok) {
+        const backendConvs = await res.json();
+        if (Array.isArray(backendConvs) && backendConvs.length > 0) {
+          const latestBackend = backendConvs[0];
+          if (latestBackend.messages && latestBackend.messages.length > 0) {
+            session.messages = latestBackend.messages;
+            session.title = latestBackend.title || session.title;
+            saveSession(session);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not sync backend conversations for document", e);
+    }
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("documind_open_document_chat", {
+      detail: { document: documentName, privacyMode, sessionId: session.id },
+    })
+  );
+
+  window.location.hash = "chat";
+  const el = document.getElementById("chat");
+  if (el) el.scrollIntoView({ behavior: "smooth" });
+
+  return session;
 }

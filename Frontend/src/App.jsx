@@ -57,24 +57,22 @@ function AppContent() {
   const pageVariants = reduceMotion
     ? {
         initial: { opacity: 0 },
-        animate: { opacity: 1, transition: { duration: 0.18 } },
-        exit: { opacity: 0, transition: { duration: 0.12 } },
+        animate: { opacity: 1, transition: { duration: 0.15 } },
+        exit: { opacity: 0, transition: { duration: 0.1 } },
       }
     : {
-        initial: { opacity: 0, y: 22, scale: 0.994, filter: "blur(10px)" },
+        initial: { opacity: 0, y: 12, scale: 0.998 },
         animate: {
           opacity: 1,
           y: 0,
           scale: 1,
-          filter: "blur(0px)",
-          transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+          transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
         },
         exit: {
           opacity: 0,
-          y: -14,
-          scale: 1.004,
-          filter: "blur(6px)",
-          transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+          y: -8,
+          scale: 1,
+          transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
         },
       };
 

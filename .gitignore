@@ -37,9 +37,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
-rag-ui/dist/
-rag-ui/dist-ssr/
+Frontend/dist/
+Frontend/dist-ssr/
+Frontend/node_modules/
 
 # OS Files
 .DS_Store

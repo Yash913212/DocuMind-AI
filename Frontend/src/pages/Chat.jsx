@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Send,
   Compass,
   MessageSquarePlus,
+  Plus,
   Paperclip,
   UploadCloud,
   FileText,
@@ -36,6 +37,7 @@ import {
   deleteSession,
   updateSessionTitle,
   clearAllSessions,
+  findOrCreateDocumentSession,
 } from "../utils/chatSessionStore";
 import { ConversationHistoryDrawer } from "../components/ConversationHistoryDrawer";
 import { DocuMindLogo } from "../components/DocuMindLogo";
@@ -108,6 +110,71 @@ export function Chat() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
+  // Dynamic Context-Aware Prompt Starters (avoids hardcoding static prompts)
+  const starterCards = useMemo(() => {
+    if (allDocuments && allDocuments.length > 0) {
+      const targetDoc =
+        activeDocument !== "ALL"
+          ? activeDocument
+          : allDocuments[0]?.name || "Document";
+      const cleanName = targetDoc.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+
+      return [
+        {
+          icon: "🎯",
+          title: "Core Specifications",
+          prompt: `What are the core technical specifications and tolerances detailed in ${cleanName}?`,
+          desc: "Extract key parameters, engineering limits, and design standards.",
+        },
+        {
+          icon: "📊",
+          title: "Table & Data Matrices",
+          prompt: `Summarize the key data tables, numeric metrics, and ratings from ${cleanName}.`,
+          desc: "Retrieve structured table values and column associations.",
+        },
+        {
+          icon: "⚠️",
+          title: "Safety & Compliance",
+          prompt: `List all safety warnings, regulatory mandates, and critical caution items in ${cleanName}.`,
+          desc: "Isolate hazard advisories and operational guidelines.",
+        },
+        {
+          icon: "📐",
+          title: "Schematics & Procedures",
+          prompt: `Explain the operational procedures and diagrammatic workflows described in ${cleanName}.`,
+          desc: "Analyze step-by-step instructions and component relations.",
+        },
+      ];
+    }
+
+    return [
+      {
+        icon: "📐",
+        title: "System Architecture",
+        prompt: "What is the end-to-end multimodal architecture of DocuMind AI?",
+        desc: "Explain the ingestion pipeline and retrieval fusion.",
+      },
+      {
+        icon: "📊",
+        title: "VDocRAG Benchmark",
+        prompt: "How does DocuMind AI compare against VDocRAG (Tanaka et al., CVPR 2025)?",
+        desc: "Review key differences in image vs text-centric RAG.",
+      },
+      {
+        icon: "🔒",
+        title: "Private Operating Mode",
+        prompt: "Explain how DocuMind AI implements its local-first private mode.",
+        desc: "Security boundary, local-first Ollama, and local ChromaDB.",
+      },
+      {
+        icon: "📋",
+        title: "Table & Revision Analysis",
+        prompt: "How does DocuMind AI handle structured tables and document revision diffing?",
+        desc: "Preserving row/column matrices and detecting parameter shifts.",
+      },
+    ];
+  }, [allDocuments, activeDocument]);
+
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
@@ -176,35 +243,158 @@ export function Chat() {
     toast.success(`Loaded conversation: "${target.title}"`, { id: "session-loaded" });
   };
 
-  const handleNewChat = () => {
+  const handleActiveDocumentChange = async (newDoc) => {
+    // 1. Save current active session state first
+    if (currentSessionId && messages.length > 0) {
+      saveSession({
+        id: currentSessionId,
+        document: activeDocument,
+        technicalMode,
+        privacyMode,
+        messages,
+      });
+    }
+
+    setActiveDocument(newDoc);
+
+    // 2. Load or create document session
+    const docSession = findOrCreateDocumentSession(newDoc, privacyMode);
+    if (docSession) {
+      setCurrentSessionId(docSession.id);
+      setActiveSessionId(docSession.id);
+
+      // If local session has no messages, attempt sync from server-side document store
+      if (newDoc !== "ALL" && (!docSession.messages || docSession.messages.length === 0)) {
+        try {
+          const res = await fetch(`${API_BASE}/documents/${encodeURIComponent(newDoc)}/conversations`);
+          if (res.ok) {
+            const backendConvs = await res.json();
+            if (Array.isArray(backendConvs) && backendConvs.length > 0) {
+              const latest = backendConvs[0];
+              if (latest.messages && latest.messages.length > 0) {
+                docSession.messages = latest.messages;
+                docSession.title = latest.title || docSession.title;
+                saveSession(docSession);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("Could not sync conversations for document", e);
+        }
+      }
+
+      setMessages(docSession.messages || []);
+      setSessions(getStoredSessions());
+      if (docSession.messages && docSession.messages.length > 0) {
+        const qCount = docSession.messages.filter((m) => m.role === "user").length;
+        toast.success(`Resumed conversation for ${newDoc.replace(/\.[^/.]+$/, "")} (${qCount} question${qCount === 1 ? "" : "s"} asked)`, { id: "doc-session" });
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleOpenDocumentChat = (e) => {
+      const { document: targetDoc, privacyMode: targetMode, sessionId } = e.detail || {};
+      if (targetMode && targetMode !== privacyMode) {
+        setPrivacyMode(targetMode);
+      }
+      if (targetDoc) {
+        setActiveDocument(targetDoc);
+        const stored = getStoredSessions();
+        const found = stored.find((s) => s.id === sessionId || s.document === targetDoc);
+        if (found) {
+          setCurrentSessionId(found.id);
+          setActiveSessionId(found.id);
+          setMessages(found.messages || []);
+          toast.success(`Loaded document conversation for ${targetDoc.replace(/\.[^/.]+$/, "")}`, { id: "doc-loaded" });
+        }
+      }
+    };
+
+    window.addEventListener("documind_open_document_chat", handleOpenDocumentChat);
+    return () => {
+      window.removeEventListener("documind_open_document_chat", handleOpenDocumentChat);
+    };
+  }, [privacyMode, setPrivacyMode]);
+
+  const prevPrivacyModeRef = useRef(privacyMode);
+
+  const handleNewChat = (modeOverride = null, isModeSwitch = false) => {
+    const currentMode = modeOverride || privacyMode;
+    const isPrivate = currentMode === "private";
+
     // Save current session before creating a fresh one
     if (currentSessionId && messages.length > 0) {
       saveSession({
         id: currentSessionId,
         document: activeDocument,
         technicalMode,
+        privacyMode: currentMode,
         messages,
       });
+    } else if (messages.length === 0 && !isModeSwitch) {
+      // Already on a fresh session - just focus input and inform user
+      setInput("");
+      setSuggestions([]);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.focus();
+      }
+      toast.success("Ready for a new conversation", { id: "new-chat" });
+      return;
     }
 
     const fresh = createNewSession({
-      title: "New Conversation",
-      document: activeDocument,
+      title: isPrivate ? "Private Session (Air-Gapped)" : "New Conversation",
+      document: "ALL",
       technicalMode,
+      privacyMode: currentMode,
     });
 
     setCurrentSessionId(fresh.id);
     setActiveSessionId(fresh.id);
     setMessages([]);
-    setSuggestions([]);
+    setSuggestions(
+      isPrivate
+        ? [
+            "How does local-first privacy work?",
+            "What data is kept air-gapped?",
+            "Summarize private documents",
+          ]
+        : [
+            "What are the key takeaways?",
+            "Give an executive summary of the whole book",
+            "What are the major milestones and breakthroughs?",
+          ]
+    );
     setInput("");
+    setActiveDocument("ALL");
     setSessions(getStoredSessions());
-    toast.success("New conversation started", { id: "new-chat" });
+    if (isPrivate) {
+      toast.success("🔒 Entered Private Mode: Fresh chat started. Public mode files are excluded.", {
+        id: "new-chat",
+        duration: 4000,
+      });
+    } else {
+      toast.success("🌐 Switched to Public Mode: Fresh chat session started.", {
+        id: "new-chat",
+        duration: 3000,
+      });
+    }
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.focus();
     }
   };
+
+  // Always start a new chat and reload documents when entering/leaving Private Mode
+  useEffect(() => {
+    if (prevPrivacyModeRef.current !== privacyMode) {
+      prevPrivacyModeRef.current = privacyMode;
+      fetchDocuments(privacyMode);
+      handleNewChat(privacyMode, true);
+    }
+  }, [privacyMode]);
 
   const handleDeleteSession = (sessionId) => {
     const updated = deleteSession(sessionId);
@@ -214,7 +404,7 @@ export function Chat() {
       if (updated.length > 0) {
         handleSelectSession(updated[0].id);
       } else {
-        const fresh = createNewSession({ document: activeDocument, technicalMode });
+        const fresh = createNewSession({ document: activeDocument, technicalMode, privacyMode });
         setCurrentSessionId(fresh.id);
         setMessages([]);
         setSessions([fresh]);
@@ -241,13 +431,17 @@ export function Chat() {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (modeOverride = null) => {
     try {
-      const res = await fetch(`${API_BASE}/documents`);
+      const targetMode = modeOverride || privacyMode;
+      const res = await fetch(`${API_BASE}/documents?mode=${targetMode}`);
       if (res.ok) {
         const docs = await res.json();
         docs.sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
         setAllDocuments(docs);
+        if (activeDocument !== "ALL" && !docs.some((d) => d.name === activeDocument)) {
+          setActiveDocument("ALL");
+        }
       }
     } catch (e) {
       console.error("Failed to load documents", e);
@@ -327,19 +521,25 @@ export function Chat() {
                   });
                 } else if (data.type === "done") {
                   fetchDocuments();
-                  setActiveDocument("ALL");
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: "assistant",
-                      content: `You have uploaded **${file.name}**. I can now search across this and all your other documents! What would you like to know?`,
-                      sources: [],
-                    },
-                  ]);
+                  setActiveDocument(file.name);
+                  const uploadGreeting = {
+                    role: "assistant",
+                    content: `You have uploaded **${file.name}**. Grounding is now focused on this document. What would you like to know?`,
+                    sources: [],
+                  };
+                  setMessages((prev) => [...prev, uploadGreeting]);
+                  if (currentSessionId) {
+                    saveSession({
+                      id: currentSessionId,
+                      document: file.name,
+                      technicalMode,
+                      messages: [uploadGreeting],
+                    });
+                  }
                   setSuggestions([
-                    "Summarize my documents",
                     "What are the key takeaways?",
-                    "Find connections between the files",
+                    "Give an executive summary of the whole book",
+                    "What are the major milestones and breakthroughs?",
                   ]);
                   setUploadProgress(null);
                   window.dispatchEvent(new Event("documentUpdated"));
@@ -414,6 +614,7 @@ export function Chat() {
       id: activeId,
       document: activeDocument,
       technicalMode,
+      privacyMode,
       messages: initialUpdated.map((m) => ({ ...m, isStreaming: false })),
     });
 
@@ -485,6 +686,7 @@ export function Chat() {
           id: activeId,
           document: activeDocument,
           technicalMode,
+          privacyMode,
           messages: latest.map((m) => ({ ...m, isStreaming: false })),
         });
         setSessions(getStoredSessions());
@@ -530,18 +732,20 @@ export function Chat() {
       <div className="chat-ambient pointer-events-none absolute inset-0" aria-hidden="true" />
 
       <motion.header
-        initial={reduceMotion ? false : { opacity: 0, y: -16, filter: "blur(8px)" }}
-        animate={reduceMotion ? {} : { opacity: 1, y: 0, filter: "blur(0px)" }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative overflow-hidden mb-4 sm:mb-6 shrink-0 max-w-5xl xl:max-w-6xl mx-auto w-full flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-indigo/85 backdrop-blur-2xl p-4 sm:p-5 sm:px-6 rounded-2xl border border-fog/15 shadow-[0_8px_30px_-5px_rgba(0,0,0,0.15)]"
+        initial={reduceMotion ? false : { opacity: 0, y: -10 }}
+        animate={reduceMotion ? {} : { opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="relative mb-4 sm:mb-6 shrink-0 max-w-6xl xl:max-w-7xl mx-auto w-full flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 bg-indigo/90 backdrop-blur-2xl p-4 sm:p-5 sm:px-6 rounded-2xl border border-fog/15 shadow-[0_8px_30px_-5px_rgba(0,0,0,0.18)]"
       >
-        <motion.div
-          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brass/80 to-transparent"
-          initial={{ x: "-100%" }}
-          animate={reduceMotion ? {} : { x: "100%" }}
-          transition={{ duration: 4.5, repeat: Infinity, repeatDelay: 2.4, ease: "easeInOut" }}
-          aria-hidden="true"
-        />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px overflow-hidden rounded-t-2xl">
+          <motion.div
+            className="w-full h-full bg-gradient-to-r from-transparent via-brass/80 to-transparent"
+            initial={{ x: "-100%" }}
+            animate={reduceMotion ? {} : { x: "100%" }}
+            transition={{ duration: 4.5, repeat: Infinity, repeatDelay: 2.4, ease: "easeInOut" }}
+            aria-hidden="true"
+          />
+        </div>
         <div className="flex items-center gap-3.5 min-w-0 shrink-0">
           <DocuMindLogo size={42} />
           <div className="min-w-0">
@@ -552,7 +756,7 @@ export function Chat() {
               <span className="shrink-0 text-fog/80">Grounding:</span>
               <select
                 value={activeDocument}
-                onChange={(e) => setActiveDocument(e.target.value)}
+                onChange={(e) => handleActiveDocumentChange(e.target.value)}
                 className="max-w-[200px] sm:max-w-[280px] bg-ink/80 text-parchment border border-fog/20 rounded-lg px-2.5 py-1 text-xs font-data-mono focus:outline-none focus:border-brass cursor-pointer truncate"
               >
                 <option value="ALL">All Indexed Documents</option>
@@ -566,12 +770,12 @@ export function Chat() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5 w-full lg:w-auto justify-between lg:justify-end shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full xl:w-auto justify-start xl:justify-end shrink-0">
           {/* Privacy Engine Mode (Click to Toggle) */}
           <button
             type="button"
             onClick={() => setPrivacyMode(privacyMode === "private" ? "normal" : "private")}
-            className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-data-mono flex flex-1 lg:flex-none items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-pointer transition-all whitespace-nowrap overflow-hidden relative ${
+            className={`h-9 px-2.5 sm:px-3 rounded-xl border text-xs font-data-mono flex flex-1 xl:flex-none items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-pointer transition-all whitespace-nowrap overflow-hidden relative ${
               privacyMode === "private"
                 ? "bg-brass/15 hover:bg-brass/25 text-brass border-brass/40 shadow-sm shadow-brass/20"
                 : "bg-ink/60 hover:bg-ink text-parchment border-fog/20 shadow-sm"
@@ -606,7 +810,7 @@ export function Chat() {
 
           {/* Technical Mode Switch */}
           <div
-            className="h-9 px-2 sm:px-3 rounded-xl bg-ink/70 border border-fog/15 flex flex-1 lg:flex-none items-center justify-center gap-2 sm:gap-2.5 shadow-sm whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3 rounded-xl bg-ink/70 border border-fog/15 flex flex-1 xl:flex-none items-center justify-center gap-2 sm:gap-2.5 shadow-sm whitespace-nowrap"
             title="Constrains output to strict numerical matches and page citations"
           >
             <span className="font-ui text-[10px] sm:text-xs text-fog uppercase tracking-wider font-medium">
@@ -629,7 +833,7 @@ export function Chat() {
           </div>
 
           {/* Subtle Vertical Divider */}
-          <div className="w-px h-6 bg-fog/20 hidden lg:block mx-0.5 shrink-0" />
+          <div className="w-px h-6 bg-fog/20 hidden xl:block mx-0.5 shrink-0" />
 
           {/* Past Conversations Drawer Toggle */}
           <motion.button
@@ -638,7 +842,7 @@ export function Chat() {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             onClick={() => setIsHistoryOpen(true)}
-            className="h-9 px-2.5 sm:px-3 rounded-xl bg-ink/70 hover:bg-ink text-parchment border border-fog/20 hover:border-brass/40 text-xs font-ui-label font-medium flex flex-1 lg:flex-none items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3 rounded-xl bg-ink/70 hover:bg-ink text-parchment border border-fog/20 hover:border-brass/40 text-xs font-ui-label font-medium flex flex-1 xl:flex-none items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer whitespace-nowrap"
             title="Open saved past conversations"
           >
             <Clock size={14} className="text-brass shrink-0" />
@@ -657,7 +861,7 @@ export function Chat() {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             onClick={() => setIsSummaryModalOpen(true)}
-            className="h-9 px-2.5 sm:px-3 rounded-xl bg-brass/15 hover:bg-brass text-brass hover:text-white border border-brass/40 text-xs font-ui-label font-semibold flex flex-1 lg:flex-none items-center justify-center gap-1.5 shadow-sm shadow-brass/20 transition-all cursor-pointer whitespace-nowrap"
+            className="h-9 px-2.5 sm:px-3 rounded-xl bg-brass/15 hover:bg-brass text-brass hover:text-white border border-brass/40 text-xs font-ui-label font-semibold flex flex-1 xl:flex-none items-center justify-center gap-1.5 shadow-sm shadow-brass/20 transition-all cursor-pointer whitespace-nowrap"
             title="Summarize all past conversations and extract cross-document insights"
           >
             <Sparkles size={14} className="shrink-0" />
@@ -665,22 +869,17 @@ export function Chat() {
             <span className="sm:hidden">Summary</span>
           </motion.button>
 
-          {/* New Chat Button */}
+          {/* New Chat Button - Always Accessible and Prominent */}
           <motion.button
             type="button"
-            whileHover={messages.length > 0 ? { y: -1, scale: 1.02 } : {}}
-            whileTap={messages.length > 0 ? { scale: 0.97 } : {}}
+            whileHover={{ y: -1, scale: 1.025 }}
+            whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             onClick={handleNewChat}
-            disabled={messages.length === 0}
-            className={`h-9 px-2.5 sm:px-3.5 rounded-xl font-ui font-semibold text-xs flex flex-1 lg:flex-none items-center justify-center gap-1.5 sm:gap-2 shadow-sm transition-all whitespace-nowrap ${
-              messages.length > 0
-                ? "bg-brass/15 hover:bg-brass text-brass hover:text-white border border-brass/40 hover:shadow-brass/25 cursor-pointer"
-                : "bg-ink/50 text-fog/70 border border-fog/25 cursor-not-allowed"
-            }`}
-            title={messages.length > 0 ? "Start a fresh conversation" : "Already in a fresh conversation"}
+            className="btn-signal h-9 px-3.5 sm:px-4 rounded-xl text-white font-semibold text-xs font-ui flex items-center justify-center gap-1.5 shadow-md shadow-brass/25 hover:shadow-brass/40 cursor-pointer whitespace-nowrap shrink-0 transition-all"
+            title="Start a fresh conversation"
           >
-            <MessageSquarePlus size={15} className="shrink-0" />
+            <Plus size={15} className="stroke-[2.5] shrink-0" />
             <span>New Chat</span>
           </motion.button>
         </div>
@@ -698,7 +897,7 @@ export function Chat() {
 
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto space-y-6 sm:space-y-8 pb-28 sm:pb-36 pt-2 max-w-5xl xl:max-w-6xl mx-auto w-full pr-1 sm:pr-2"
+        className="flex-1 overflow-y-auto space-y-6 sm:space-y-8 pb-48 sm:pb-56 pt-2 max-w-6xl xl:max-w-7xl mx-auto w-full pr-1 sm:pr-2"
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center py-8">
@@ -713,14 +912,22 @@ export function Chat() {
               Query technical manuals, extract numerical tolerances, analyze wiring diagrams, and inspect verified page-level citations.
             </p>
 
-            {/* Active Document Status Pill */}
-            {allDocuments.length > 0 && (
+            {/* Air-Gapped Private Mode Badge */}
+            {privacyMode === "private" && (
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-brass/15 border border-brass/40 text-xs font-data-mono text-brass mb-4 shadow-sm">
+                <Lock size={13} className="text-brass animate-pulse" />
+                <span>Air-Gapped Private Mode &middot; Public files strictly excluded</span>
+              </div>
+            )}
+
+            {/* Active Document Status Pill or Empty Private Mode Guide */}
+            {allDocuments.length > 0 ? (
               <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-indigo/40 border border-brass/25 text-xs font-data-mono text-parchment mb-8 shadow-sm">
                 <Database size={14} className="text-brass" />
                 <span>
                   Active:{" "}
                   <strong className="text-brass">
-                    {activeDocument === "ALL" ? "All Documents" : activeDocument}
+                    {activeDocument === "ALL" ? (privacyMode === "private" ? "All Private Documents" : "All Documents") : activeDocument}
                   </strong>
                 </span>
                 <span className="text-fog">|</span>
@@ -729,7 +936,14 @@ export function Chat() {
                   {allDocuments.reduce((acc, d) => acc + (d.chunks || 0), 0)} Chunks
                 </span>
               </div>
-            )}
+            ) : privacyMode === "private" ? (
+              <div className="max-w-md mx-auto mb-8 p-4 rounded-2xl bg-ink/70 border border-brass/25 text-center shadow-sm">
+                <p className="text-xs text-brass font-semibold mb-1">🔒 Zero Public Files Accessible</p>
+                <p className="text-xs text-fog">
+                  Public mode files are strictly excluded from this air-gapped session. Drop or upload a confidential document below to query locally with Ollama.
+                </p>
+              </div>
+            ) : null}
 
             {/* Past Conversations Quick Access Strip */}
             {sessions.filter((s) => s.messages && s.messages.length > 0).length > 0 && (
@@ -759,39 +973,14 @@ export function Chat() {
               </div>
             )}
 
-            {/* Curated Prompt Starter Cards */}
+            {/* Dynamic Contextual Prompt Starter Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-3xl text-left mb-6">
-              {[
-                {
-                  icon: "📐",
-                  title: "System Architecture",
-                  prompt: "What is the end-to-end multimodal architecture of DocuMind AI?",
-                  desc: "Explain the ingestion pipeline and retrieval fusion.",
-                },
-                {
-                  icon: "📊",
-                  title: "VDocRAG Benchmark",
-                  prompt: "How does DocuMind AI compare against VDocRAG (Tanaka et al., CVPR 2025)?",
-                  desc: "Review key differences in image vs text-centric RAG.",
-                },
-                {
-                  icon: "🔒",
-                  title: "Private Operating Mode",
-                  prompt: "Explain how DocuMind AI implements its local-first private mode.",
-                  desc: "Security boundary, local-first Ollama, and local ChromaDB.",
-                },
-                {
-                  icon: "📋",
-                  title: "Table & Revision Analysis",
-                  prompt: "How does DocuMind AI handle structured tables and document revision diffing?",
-                  desc: "Preserving row/column matrices and detecting 80°C to 90°C shifts.",
-                },
-              ].map((item, idx) => (
+              {starterCards.map((item, idx) => (
                 <motion.button
                   key={idx}
-                  whileHover={{ y: -3, scale: 1.01 }}
+                  whileHover={{ y: -2, scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
-                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                   onClick={() => handleSubmit(null, item.prompt)}
                   className="suggestion-card p-4 rounded-xl glass-card hover:border-brass/50 transition-all text-left group cursor-pointer shadow-md"
                 >
@@ -828,11 +1017,11 @@ export function Chat() {
                 reduceMotion
                   ? false
                   : m.role === "user"
-                  ? { opacity: 0, x: 12, y: 10, scale: 0.985, filter: "blur(4px)" }
-                  : { opacity: 0, y: 12, scale: 0.99, filter: "blur(4px)" }
+                  ? { opacity: 0, x: 8, y: 6 }
+                  : { opacity: 0, y: 6 }
               }
-              animate={reduceMotion ? {} : { opacity: 1, x: 0, y: 0, scale: 1, filter: "blur(0px)" }}
-              transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+              animate={reduceMotion ? {} : { opacity: 1, x: 0, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
@@ -1069,23 +1258,24 @@ export function Chat() {
             ))}
           </motion.div>
         )}
+        <div className="h-6" />
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-ink via-ink/95 to-transparent pointer-events-none z-20">
         <form
           onSubmit={(e) => handleSubmit(e)}
-          className="max-w-5xl xl:max-w-6xl mx-auto relative pointer-events-auto"
+          className="max-w-6xl xl:max-w-7xl mx-auto relative pointer-events-auto w-full"
         >
-          <div className="glass-card rounded-2xl border border-fog/12 focus-within:border-brass/60 focus-within:shadow-[0_0_30px_-3px_rgba(225,6,0,0.2),0_0_60px_-6px_rgba(225,6,0,0.08)] transition-all overflow-hidden p-2.5 flex flex-col gap-2">
-            <div className="flex items-center gap-2 px-2 pt-1">
+          <div className="glass-card rounded-2xl sm:rounded-3xl border border-fog/20 focus-within:border-brass/70 focus-within:shadow-[0_0_35px_-4px_rgba(225,6,0,0.25),0_16px_40px_-10px_rgba(0,0,0,0.4)] transition-all overflow-hidden p-3 sm:p-4 flex flex-col gap-3 bg-indigo/95 backdrop-blur-2xl shadow-2xl">
+            <div className="flex items-center gap-2 px-2 sm:px-3 pt-1">
               <textarea
                 ref={textareaRef}
-                rows={1}
+                rows={2}
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
                   e.target.style.height = "auto";
-                  e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+                  e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 56), 220)}px`;
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -1101,39 +1291,42 @@ export function Chat() {
                     ? `Ask a technical question about ${activeDocument}...`
                     : "Ask questions, verify specs, or analyze tables across all documents..."
                 }
-                className="w-full bg-transparent font-body text-parchment placeholder:text-fog/70 focus:outline-none text-sm sm:text-base resize-none overflow-y-auto leading-relaxed"
+                className="w-full bg-transparent font-body text-parchment placeholder:text-fog/70 focus:outline-none text-base sm:text-lg resize-none overflow-y-auto leading-relaxed"
                 disabled={isLoading || isUploading}
-                style={{ minHeight: "38px" }}
+                style={{ minHeight: "56px" }}
               />
             </div>
 
-            <div className="flex items-center justify-between px-2 pt-1.5 border-t border-fog/10">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between px-2 sm:px-3 pt-2 sm:pt-2.5 border-t border-fog/15">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-ui-label text-fog hover:text-brass hover:bg-ink/50 transition-colors"
-                  title="Upload Document"
+                  className="h-9 px-3 sm:px-3.5 rounded-xl bg-ink/70 hover:bg-ink text-parchment hover:text-brass border border-fog/20 hover:border-brass/40 text-xs sm:text-sm font-ui-label font-medium flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95"
+                  title="Upload Document (PDF, Markdown, CSV, Image)"
                   disabled={isLoading || isUploading}
                 >
-                  <Paperclip size={15} />
-                  <span className="hidden sm:inline">Attach</span>
+                  <Paperclip size={16} />
+                  <span className="hidden sm:inline">Attach Document</span>
+                  <span className="sm:hidden">Attach</span>
                 </button>
 
-                <span className="text-[11px] font-data-mono text-fog/60 hidden sm:inline">
-                  ⏎ to send &middot; ⇧⏎ for new line
+                <span className="text-xs font-data-mono text-fog/70 hidden md:inline-flex items-center gap-2 bg-ink/40 px-2.5 py-1 rounded-lg border border-fog/10">
+                  <span>⏎ Enter to send</span>
+                  <span className="text-fog/30">|</span>
+                  <span>⇧⏎ new line</span>
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 {isLoading && <CompassSpinner isSpinning={true} />}
                 <button
                   type="submit"
-                  className="btn-signal flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-white font-semibold text-xs font-ui-label disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+                  className="btn-signal h-10 px-5 sm:px-7 rounded-xl text-white font-semibold text-xs sm:text-sm font-ui flex items-center gap-2 shadow-lg shadow-brass/30 hover:shadow-brass/50 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer active:scale-95"
                   disabled={!input.trim() || isLoading || isUploading}
                 >
                   <span>Send</span>
-                  <Send size={13} />
+                  <Send size={15} />
                 </button>
               </div>
             </div>

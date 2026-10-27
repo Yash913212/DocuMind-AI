@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class HybridRetriever:
     """
     Combines multiple retrieval strategies:
-    1. Text similarity (all-mpnet-base-v2 via Supabase pgvector)
+    1. Text similarity (all-mpnet-base-v2 via ChromaDB vector store)
     2. Table-specific retrieval (filtered by chunk_type)
     3. Visual page retrieval (filtered by chunk_type)
     4. Metadata filtering (document, page, section)
@@ -33,6 +33,97 @@ class HybridRetriever:
         self.table_k = max(3, RETRIEVAL_K // 2)
         self.final_k = RERANK_TOP_K
 
+    async def retrieve_document_summary(
+        self,
+        document_name: str,
+        query: str = "",
+        target_chunk_count: int = 18,
+    ) -> List[Tuple[Document, float]]:
+        """
+        Stratified whole-document retrieval for comprehensive summarization.
+        Extracts representative chunks evenly distributed across the entire document
+        from page 1 to the final page, plus top semantic chunks for any specific query keywords.
+        """
+        from backend.config import is_private_mode
+        from backend.privacy_manager import is_document_allowed_in_current_mode
+
+        if is_private_mode() and not is_document_allowed_in_current_mode(document_name, "private"):
+            logger.warning(f"Private mode active: blocked access to public document '{document_name}'")
+            return []
+
+        try:
+            chunks = await asyncio.to_thread(db_manager.get_document_chunks, document_name)
+            if not chunks:
+                logger.warning(f"No chunks found for document: {document_name}")
+                return await self._text_retrieval(query, self.text_k, {})
+
+            # Group chunks by page
+            from collections import defaultdict
+            chunks_by_page = defaultdict(list)
+            for c in chunks:
+                page = c.get("metadata", {}).get("page", 0)
+                chunks_by_page[page].append(c)
+
+            sorted_pages = sorted(chunks_by_page.keys())
+            total_pages = len(sorted_pages)
+
+            if total_pages <= target_chunk_count:
+                sample_indices = set(range(total_pages))
+            else:
+                step = max(1, total_pages // target_chunk_count)
+                sample_indices = set(range(0, total_pages, step))
+                sample_indices.add(0)  # Always include first page (title / intro)
+                sample_indices.add(total_pages - 1)  # Always include last page (conclusion / epilogue)
+
+            selected_chunks = []
+            seen_ids = set()
+
+            for idx in sorted(sample_indices):
+                page = sorted_pages[idx]
+                page_chunks = chunks_by_page[page]
+                # Pick the chunk with the most substantial text content
+                best_chunk = max(page_chunks, key=lambda x: len(x.get("content", "")))
+                chunk_id = best_chunk.get("id", str(idx))
+                if chunk_id not in seen_ids:
+                    seen_ids.add(chunk_id)
+                    selected_chunks.append(best_chunk)
+
+            # Convert to (Document, score) format
+            results = []
+            for c in selected_chunks:
+                meta = c.get("metadata", {}).copy()
+                doc = Document(page_content=c.get("content", ""), metadata=meta)
+                results.append((doc, 0.95))
+
+            # If a specific user query was provided, also fetch top similarity chunks to enrich context
+            if query and query.strip():
+                try:
+                    doc_path = os.path.join(os.environ.get("DATA_DIR", "./data"), document_name)
+                    query_chunks = await asyncio.to_thread(
+                        db_manager.similarity_search,
+                        query,
+                        k=3,
+                        filter_dict={"source": doc_path}
+                    )
+                    existing_texts = {d.page_content for d, _ in results}
+                    for q_doc, q_score in query_chunks:
+                        if q_doc.page_content not in existing_texts:
+                            results.append((q_doc, max(0.5, float(q_score))))
+                except Exception as e:
+                    logger.debug(f"Query enhancement in summary retrieval skipped: {e}")
+
+            # Sort chronologically by page number so the LLM reads through the document in order
+            def get_page_num(item):
+                p = item[0].metadata.get("page", 0)
+                return p if isinstance(p, int) else 0
+
+            results.sort(key=get_page_num)
+            logger.info(f"Retrieved {len(results)} stratified summary chunks across {total_pages} pages for {document_name}")
+            return results
+        except Exception as e:
+            logger.error(f"Error in retrieve_document_summary: {e}", exc_info=True)
+            return await self._text_retrieval(query, self.text_k, {})
+
     async def retrieve(
         self,
         query: str,
@@ -45,6 +136,23 @@ class HybridRetriever:
         
         Returns a ranked list of (Document, score) tuples.
         """
+        from backend.config import is_private_mode
+        from backend.privacy_manager import is_document_allowed_in_current_mode, get_documents_for_mode
+
+        # Privacy mode validation
+        if is_private_mode():
+            if document and not is_document_allowed_in_current_mode(document, "private"):
+                logger.warning(f"Private mode active: blocked access to public document '{document}'")
+                return []
+            private_docs = get_documents_for_mode("private")
+            if not private_docs:
+                logger.info("Private mode active: zero private documents exist in storage.")
+                return []
+
+        # If query is asking for a summary/overview and a document is provided, use stratified whole-document retrieval
+        if (query_type == "summary") and document:
+            return await self.retrieve_document_summary(document, query)
+
         # Determine retrieval strategy based on query type
         strategy = self._get_strategy(query_type)
 
@@ -53,6 +161,12 @@ class HybridRetriever:
         if document:
             doc_path = os.path.join(os.environ.get("DATA_DIR", "./data"), document)
             filter_dict["source"] = doc_path
+        elif is_private_mode():
+            # If in private mode and only 1 private doc exists, scope filter to it
+            private_docs = get_documents_for_mode("private")
+            if len(private_docs) == 1:
+                doc_path = os.path.join(os.environ.get("DATA_DIR", "./data"), private_docs[0])
+                filter_dict["source"] = doc_path
 
         # Run retrieval in parallel
         tasks = []
@@ -78,10 +192,19 @@ class HybridRetriever:
                 continue
             all_candidates.extend(result)
 
-        if not all_candidates:
-            # Fallback: simple text retrieval without filters
+        if not all_candidates and not is_private_mode():
+            # Fallback: simple text retrieval without filters (only allowed in public mode)
             logger.warning("No results from hybrid retrieval, falling back to simple search.")
             all_candidates = await self._text_retrieval(query, self.text_k, {})
+
+        # Ensure strict mode isolation: purge any candidates from excluded modes
+        all_candidates = [
+            (doc, score) for doc, score in all_candidates
+            if is_document_allowed_in_current_mode(os.path.basename(doc.metadata.get("source", "")))
+        ]
+
+        if not all_candidates:
+            return []
 
         # Fuse and re-rank
         final_results = self._fuse_and_rerank(all_candidates, query_type)
@@ -91,6 +214,13 @@ class HybridRetriever:
     def _get_strategy(self, query_type: str) -> Dict[str, Any]:
         """Get retrieval parameters based on query type."""
         strategies = {
+            "summary": {
+                "text_k": 30,
+                "table_k": 5,
+                "visual_k": 5,
+                "include_tables": True,
+                "include_visual": True,
+            },
             "factual": {
                 "text_k": self.text_k,
                 "table_k": 3,

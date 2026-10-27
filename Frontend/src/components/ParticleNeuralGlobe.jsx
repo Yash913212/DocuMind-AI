@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
@@ -6,9 +6,11 @@ import * as THREE from "three";
 function FloatingMonolith() {
   const monolithRef = useRef();
   const wireframeRef = useRef();
+  const timeRef = useRef(0);
 
-  useFrame((state, delta) => {
-    const t = state.clock.elapsedTime;
+  useFrame((_, delta) => {
+    timeRef.current += delta;
+    const t = timeRef.current;
     if (monolithRef.current) {
       monolithRef.current.rotation.y += delta * 0.18;
       monolithRef.current.rotation.x = Math.sin(t * 0.45) * 0.08;
@@ -23,7 +25,7 @@ function FloatingMonolith() {
 
   return (
     <group>
-      {/* Faceted Aerolite / Monolith matching the rock in the demo */}
+      {/* Faceted Aerolite / Monolith */}
       <mesh ref={monolithRef}>
         <dodecahedronGeometry args={[1.08, 1]} />
         <meshStandardMaterial
@@ -52,8 +54,9 @@ function NeuralLattice() {
   const pointsRef = useRef();
   const ringRef = useRef();
   const ringRef2 = useRef();
+  const timeRef = useRef(0);
 
-  const count = 1000;
+  const count = 650;
   const [positions, colors] = useMemo(() => {
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
@@ -79,10 +82,11 @@ function NeuralLattice() {
     return [pos, col];
   }, [count]);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
+    timeRef.current += delta;
     if (pointsRef.current) {
       pointsRef.current.rotation.y += delta * 0.1;
-      pointsRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.25) * 0.12;
+      pointsRef.current.rotation.x = Math.sin(timeRef.current * 0.25) * 0.12;
     }
     if (ringRef.current) {
       ringRef.current.rotation.z += delta * 0.16;
@@ -111,13 +115,13 @@ function NeuralLattice() {
 
       {/* Orbit Ring 1 (Signal Red Orbital Track) */}
       <mesh ref={ringRef} rotation={[Math.PI / 3, 0, 0]}>
-        <torusGeometry args={[2.7, 0.012, 16, 100]} />
+        <torusGeometry args={[2.7, 0.012, 12, 48]} />
         <meshBasicMaterial color="#e10600" transparent opacity={0.5} />
       </mesh>
 
       {/* Orbit Ring 2 (Moonlit Silver Track) */}
       <mesh ref={ringRef2} rotation={[-Math.PI / 4, Math.PI / 6, 0]}>
-        <torusGeometry args={[2.95, 0.009, 16, 100]} />
+        <torusGeometry args={[2.95, 0.009, 12, 48]} />
         <meshBasicMaterial color="#c0c0c0" transparent opacity={0.4} />
       </mesh>
     </group>
@@ -125,12 +129,28 @@ function NeuralLattice() {
 }
 
 export function ParticleNeuralGlobe() {
+  const containerRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="w-full h-full relative cursor-grab active:cursor-grabbing select-none">
+    <div ref={containerRef} className="w-full h-full relative cursor-grab active:cursor-grabbing select-none">
       <Canvas
         camera={{ position: [0, 0, 5.2], fov: 48 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        frameloop={isVisible ? "always" : "never"}
       >
         <ambientLight intensity={0.6} />
         {/* Signal Red Caustic Spotlight from bottom right */}

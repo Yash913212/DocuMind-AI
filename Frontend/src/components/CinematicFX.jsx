@@ -10,60 +10,8 @@ import {
 const CINEMATIC_EASE = [0.22, 1, 0.36, 1];
 
 export function CinematicLayer() {
-  const reduceMotion = useReducedMotion();
-  const layerRef = useRef(null);
-  const current = useRef({ x: -600, y: -600 });
-  const target = useRef({ x: -600, y: -600 });
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    if (typeof window === "undefined") return;
-    if (!window.matchMedia("(pointer: fine)").matches) return;
-
-    let frame = null;
-    let running = false;
-
-    const render = () => {
-      const dx = target.current.x - current.current.x;
-      const dy = target.current.y - current.current.y;
-
-      if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
-        current.current = { ...target.current };
-        running = false;
-        frame = null;
-      } else {
-        current.current.x += dx * 0.12;
-        current.current.y += dy * 0.12;
-        frame = requestAnimationFrame(render);
-      }
-
-      if (layerRef.current) {
-        layerRef.current.style.setProperty("--cursor-x", `${current.current.x}px`);
-        layerRef.current.style.setProperty("--cursor-y", `${current.current.y}px`);
-      }
-    };
-
-    const handlePointerMove = (event) => {
-      target.current = { x: event.clientX, y: event.clientY };
-      if (!running) {
-        running = true;
-        frame = requestAnimationFrame(render);
-      }
-    };
-
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [reduceMotion]);
-
   return (
-    <div ref={layerRef} className="cine-fx" aria-hidden="true">
-      <div className="cine-spotlight" />
-      <div className="cine-grain" />
-      <div className="cine-scanlines" />
+    <div className="cine-fx pointer-events-none fixed inset-0 z-30 overflow-hidden" aria-hidden="true">
       <div className="cine-vignette" />
     </div>
   );
@@ -73,8 +21,8 @@ export function Reveal({
   children,
   className = "",
   delay = 0,
-  y = 28,
-  amount = 0.16,
+  y = 20,
+  amount = 0.08,
   once = true,
 }) {
   const reduceMotion = useReducedMotion();
@@ -82,14 +30,14 @@ export function Reveal({
   return (
     <motion.div
       className={className}
-      initial={reduceMotion ? false : { opacity: 0, y, filter: "blur(10px)" }}
+      initial={reduceMotion ? false : { opacity: 0, y }}
       whileInView={
         reduceMotion
           ? undefined
-          : { opacity: 1, y: 0, filter: "blur(0px)" }
+          : { opacity: 1, y: 0 }
       }
       viewport={{ once, amount }}
-      transition={{ duration: 0.8, delay, ease: CINEMATIC_EASE }}
+      transition={{ duration: 0.5, delay, ease: CINEMATIC_EASE }}
     >
       {children}
     </motion.div>

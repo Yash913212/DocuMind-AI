@@ -14,7 +14,7 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 
-from backend.config import GROQ_API_KEY, OPENROUTER_API_KEY, LLM_PRIMARY, LLM_FALLBACK_1, LLM_FALLBACK_2, is_private_mode
+from backend.config import GROQ_API_KEY, OPENROUTER_API_KEY, LLM_PRIMARY, LLM_FALLBACK_1, LLM_FALLBACK_2, USE_ONLY_OLLAMA, is_private_mode
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,47 @@ TECHNICAL_SYSTEM_PROMPT = (
     "{context}"
 )
 
+# ── Document Whole-Book / Whole-Document Summary Prompt ──
+SUMMARY_SYSTEM_PROMPT = (
+    "You are an expert Document Intelligence and Literary Synthesis Assistant. "
+    "Your objective is to generate an in-depth, well-structured, and comprehensive executive summary "
+    "of the document based on the chronologically sampled evidence excerpts below.\n\n"
+    
+    "## Guidelines\n"
+    "1. Thoroughly synthesize the excerpts to cover the entire narrative/document from start to finish.\n"
+    "2. Format your response clearly in Github markdown with bold headers and bullet points:\n"
+    "   - 📖 **Executive Overview & Core Premise**: Document title, author, central premise, and primary message.\n"
+    "   - 🧭 **Key Phases & Chronological Milestones / Chapter Breakdown**: Major sections/eras covered in the text with bullet points detailing key events, projects, or concepts.\n"
+    "   - 🚀 **Major Projects, Breakthroughs & Achievements**: Significant milestones, technical developments, or historical decisions detailed in the text.\n"
+    "   - 💡 **Core Philosophy, Leadership & Key Takeaways**: The author's philosophy, management principles, personal reflections, and overarching lessons.\n"
+    "3. Incorporate specific names, places, project names, and dates from the excerpts.\n"
+    "4. End with verified page citations referencing the pages sampled across the document.\n\n"
+    
+    "## Context Excerpts (Sampled Across the Document):\n"
+    "{context}"
+)
+
+
+def is_summary_query(query: str) -> bool:
+    """Detect if a user query is asking for a summary/overview of a document or book."""
+    if not query:
+        return False
+    q = query.lower().strip()
+    summary_keywords = [
+        "summarize", "summarise", "summary", "summaries", "summarie",
+        "synopsis", "overview", "recap", "tldr", "abstract",
+        "takeaway", "takeaways", "key takeaways", "key takeaway", "main takeaways",
+        "main points", "key points", "highlights", "core themes", "key lessons", "lessons learned",
+        "whole book", "entire book", "whole document", "entire document",
+        "whole of the book", "whole of the document",
+        "what is this book about", "what is the book about",
+        "what is this document about", "what is the document about",
+        "explain the book", "explain this book", "outline of the book",
+        "chapter-wise", "chapter breakdown", "full summary", "comprehensive summary",
+        "give me a summary", "provide a summary", "give summary", "brief of the book"
+    ]
+    return any(kw in q for kw in summary_keywords)
+
 
 def _is_ollama_available() -> bool:
     """Check if Ollama is running and reachable on localhost."""
@@ -74,20 +115,20 @@ def _is_ollama_available() -> bool:
 def create_llm_instance():
     """Create the LLM instance.
     
-    In private mode, prefers local Ollama with no cloud fallbacks.
-    If Ollama is unreachable in private mode, falls back to Groq
-    (API-key based, no data retention) so the system remains usable.
-    In normal mode, uses Ollama → Groq → OpenRouter fallback chain.
+    If USE_ONLY_OLLAMA is True or privacy mode is active, uses local Ollama
+    (llama3.2:latest) exclusively with num_ctx=8192.
+    Otherwise, uses Ollama as primary with cloud fallbacks (Groq -> OpenRouter).
     """
     ollama_up = _is_ollama_available()
 
-    if is_private_mode():
+    # ── Strict Ollama-first / Local-only mode ──
+    if USE_ONLY_OLLAMA or is_private_mode():
         if ollama_up:
-            logger.info("Private mode: using local Ollama only (no cloud fallbacks).")
-            return ChatOllama(model=LLM_PRIMARY, temperature=0.0)
+            logger.info("Ollama-first active: using local Ollama (llama3.2:latest) with num_ctx=8192.")
+            return ChatOllama(model=LLM_PRIMARY, temperature=0.0, num_ctx=8192)
         
-        # Ollama not running — gracefully fall back to Groq in private mode
-        if GROQ_API_KEY:
+        # If Ollama is temporarily down and cloud is allowed as fallback
+        if not USE_ONLY_OLLAMA and GROQ_API_KEY:
             logger.warning(
                 "Private mode: Ollama is not running. "
                 "Falling back to Groq API (API-key based, no data stored)."
@@ -98,49 +139,74 @@ def create_llm_instance():
                 temperature=0.0,
             )
         
-        # Neither Ollama nor Groq available
-        logger.error(
-            "Private mode: Ollama is not running and no Groq API key configured. "
-            "LLM calls will fail. Please start Ollama or provide a GROQ_API_KEY."
+        # Ollama required but not reachable
+        logger.warning(
+            "USE_ONLY_OLLAMA is active. Defaulting to ChatOllama(model=%s, num_ctx=8192).",
+            LLM_PRIMARY
         )
-        return ChatOllama(model=LLM_PRIMARY, temperature=0.0)
+        return ChatOllama(model=LLM_PRIMARY, temperature=0.0, num_ctx=8192)
 
-    # ── Normal mode: Ollama → Groq → OpenRouter fallback chain ──
-    primary_llm = ChatOllama(model=LLM_PRIMARY, temperature=0.0)
-    
-    fallbacks = []
-    if GROQ_API_KEY:
-        fallbacks.append(
-            ChatGroq(
-                model=LLM_FALLBACK_1,
-                api_key=GROQ_API_KEY,
-                temperature=0.0,
+    # ── Normal mode: Ollama 1st (if running) → Groq → OpenRouter ──
+    if ollama_up:
+        primary_llm = ChatOllama(model=LLM_PRIMARY, temperature=0.0, num_ctx=8192)
+        fallbacks = []
+        if GROQ_API_KEY:
+            fallbacks.append(
+                ChatGroq(
+                    model=LLM_FALLBACK_1,
+                    api_key=GROQ_API_KEY,
+                    temperature=0.0,
+                    max_retries=3,
+                )
             )
+        if OPENROUTER_API_KEY and OPENROUTER_API_KEY != "your-openrouter-api-key":
+            fallbacks.append(
+                ChatOpenAI(
+                    model=LLM_FALLBACK_2,
+                    api_key=OPENROUTER_API_KEY,
+                    base_url="https://openrouter.ai/api/v1",
+                )
+            )
+        if fallbacks:
+            return primary_llm.with_fallbacks(fallbacks)
+        return primary_llm
+
+    # If Ollama is not up, use Groq directly
+    if GROQ_API_KEY:
+        groq_llm = ChatGroq(
+            model=LLM_FALLBACK_1,
+            api_key=GROQ_API_KEY,
+            temperature=0.0,
+            max_retries=3,
         )
+        if OPENROUTER_API_KEY and OPENROUTER_API_KEY != "your-openrouter-api-key":
+            fallback_2_llm = ChatOpenAI(
+                model=LLM_FALLBACK_2,
+                api_key=OPENROUTER_API_KEY,
+                base_url="https://openrouter.ai/api/v1",
+            )
+            return groq_llm.with_fallbacks([fallback_2_llm])
+        return groq_llm
 
-    if OPENROUTER_API_KEY and OPENROUTER_API_KEY != "your-openrouter-api-key":
-        fallback_2_llm = ChatOpenAI(
-            model=LLM_FALLBACK_2,
-            api_key=OPENROUTER_API_KEY,
-            base_url="https://openrouter.ai/api/v1",
-        )
-        fallbacks.append(fallback_2_llm)
-
-    if fallbacks:
-        return primary_llm.with_fallbacks(fallbacks)
-    return primary_llm
+    return ChatOllama(model=LLM_PRIMARY, temperature=0.0, num_ctx=8192)
 
 
-def create_qa_chain(technical_mode: bool = False):
+def create_qa_chain(technical_mode: bool = False, summary_mode: bool = False):
     """Create the question-answering chain.
     
     Args:
         technical_mode: If True, uses the technical manual prompt.
-                       If False, uses the general-purpose prompt.
+        summary_mode: If True, uses the comprehensive document summary prompt.
+                      Otherwise, uses the general-purpose prompt.
     """
     llm = create_llm_instance()
 
-    system_prompt = TECHNICAL_SYSTEM_PROMPT if technical_mode else GENERAL_SYSTEM_PROMPT
+    if summary_mode:
+        system_prompt = SUMMARY_SYSTEM_PROMPT
+    elif technical_mode:
+        system_prompt = TECHNICAL_SYSTEM_PROMPT
+    else:
+        system_prompt = GENERAL_SYSTEM_PROMPT
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -155,24 +221,17 @@ def create_qa_chain(technical_mode: bool = False):
 
 def classify_query_type(query: str, llm) -> str:
     """
-    Classify a technical query into a category to optimize retrieval strategy.
-    
-    Categories:
-    - factual: General factual question about the document
-    - procedural: How-to or step-by-step question
-    - specification: Asking for specific values/measurements
-    - table_lookup: Question answerable from a table
-    - diagram_lookup: Question about a diagram or schematic
-    - component_id: Identifying a specific component
-    - comparison: Comparing specifications or components
-    - troubleshooting: Debugging or problem-solving question
-    - cross_page: Requires information from multiple pages
-    - multimodal: Requires both text and visual information
+    Classify a query into a category to optimize retrieval strategy.
     """
+    # Fast path: check for whole-document summary/overview queries
+    if is_summary_query(query):
+        return "summary"
+
     classification_prompt = (
         "Classify the following technical question into exactly ONE category. "
         "Return ONLY the category name, nothing else.\n\n"
         "Categories:\n"
+        "- summary (asking for a summary, overview, synopsis, or full breakdown of a document or book)\n"
         "- factual (general facts about the document)\n"
         "- procedural (how-to, steps, procedures)\n"
         "- specification (specific values, measurements, limits)\n"
@@ -191,7 +250,7 @@ def classify_query_type(query: str, llm) -> str:
         result = llm.invoke(classification_prompt)
         category = result.content.strip().lower().replace('"', '').replace("'", "")
         valid_categories = {
-            "factual", "procedural", "specification", "table_lookup",
+            "summary", "factual", "procedural", "specification", "table_lookup",
             "diagram_lookup", "component_id", "comparison",
             "troubleshooting", "cross_page", "multimodal",
         }
@@ -252,3 +311,20 @@ def format_context_for_technical_prompt(evidence_items: list) -> str:
         )
 
     return "\n\n".join(formatted_parts)
+
+
+def format_context_for_summary_prompt(evidence_items: list) -> str:
+    """Format chronological document excerpts for summary synthesis."""
+    import os
+    parts = []
+    for idx, item in enumerate(evidence_items, 1):
+        doc = item if hasattr(item, "page_content") else item[0]
+        meta = doc.metadata or {}
+        page = meta.get("page", 0)
+        page_num = page + 1 if isinstance(page, int) and page >= 0 else "?"
+        source = os.path.basename(meta.get("source", "Document"))
+        
+        parts.append(
+            f"=== [Excerpt {idx} | Page {page_num} of {source}] ===\n{doc.page_content.strip()}"
+        )
+    return "\n\n".join(parts)

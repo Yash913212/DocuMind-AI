@@ -6,7 +6,6 @@ langchain
 langchain-community
 langchain-core
 langchain-text-splitters
-supabase
 langchain-groq
 langchain-openai
 langchain-huggingface

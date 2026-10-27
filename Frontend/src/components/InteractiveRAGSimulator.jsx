@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Search,
   FileText,
@@ -31,6 +31,22 @@ export function InteractiveRAGSimulator({ onLaunchChat }) {
   const [loading, setLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
   const [error, setError] = useState(null);
+
+  const sampleQueries = useMemo(() => {
+    if (documents && documents.length > 0) {
+      const docName = documents[0].name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+      return [
+        `What are the core technical specifications in ${docName}?`,
+        `Extract numerical limits and safety tolerances from ${docName}`,
+        `Find table specifications and component parameters`,
+      ];
+    }
+    return [
+      "What are the key engineering specifications?",
+      "Extract numerical limits and safety tolerances",
+      "Explain the system architecture and component connections",
+    ];
+  }, [documents]);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,6 +156,22 @@ export function InteractiveRAGSimulator({ onLaunchChat }) {
                   placeholder="Ask about a specification, table, or component..."
                   className="w-full bg-transparent text-xs text-parchment placeholder:text-fog/50 focus:outline-none"
                 />
+              </div>
+
+              {/* Dynamic Suggestion Chips */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {sampleQueries.map((sq, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setQuery(sq);
+                    }}
+                    className="text-[10px] px-2.5 py-1 rounded-lg bg-ink/70 hover:bg-brass/20 text-fog hover:text-parchment border border-fog/15 hover:border-brass/40 transition-colors text-left"
+                  >
+                    {sq}
+                  </button>
+                ))}
               </div>
             </label>
           </div>

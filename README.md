@@ -167,7 +167,7 @@ Every conversation session is stored as a structured document within the browser
 
 ## ⚡ Executive Multi-Conversation Intelligence Summarizer
 
-When conducting comprehensive engineering reviews across multiple equipment subsystems, information is frequently spread across several conversational threads. DocuMind AI incorporates an **Executive Multi-Conversation Intelligence Summarizer** (`rag-ui/src/components/ConversationSummaryModal.jsx` & `rag-ui/src/utils/chatSessionStore.js`) that analyzes all stored conversation histories to synthesize a unified executive briefing.
+When conducting comprehensive engineering reviews across multiple equipment subsystems, information is frequently spread across several conversational threads. DocuMind AI incorporates an **Executive Multi-Conversation Intelligence Summarizer** (`Frontend/src/components/ConversationSummaryModal.jsx` & `Frontend/src/utils/chatSessionStore.js`) that analyzes all stored conversation histories to synthesize a unified executive briefing.
 
 ```
  ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -226,7 +226,7 @@ DocuMind AI features two distinct 3D visual representations powered by **Three.j
 
 ### Map A: Interactive 3D Engineering Knowledge Graph
 
-The **Engineering Knowledge Graph** (`backend/knowledge_graph.py` & `rag-ui/src/pages/KnowledgeMap.jsx`) models explicit, directed dependencies between verified engineering entities:
+The **Engineering Knowledge Graph** (`backend/knowledge_graph.py` & `Frontend/src/pages/KnowledgeMap.jsx`) models explicit, directed dependencies between verified engineering entities:
 
 ```
                                   [Drive Motor M1]
@@ -270,7 +270,7 @@ The **Engineering Knowledge Graph** (`backend/knowledge_graph.py` & `rag-ui/src/
 
 ### Map B: 3D Semantic Embedding Atlas
 
-The **Semantic Embedding Atlas** (`/map` endpoint & `rag-ui/src/pages/KnowledgeMap.jsx`) visualizes the latent geometric space of document chunks:
+The **Semantic Embedding Atlas** (`/map` endpoint & `Frontend/src/pages/KnowledgeMap.jsx`) visualizes the latent geometric space of document chunks:
 
 ```
   ChromaDB Chunks           PCA Dimensionality Reduction           K-Means Clustering
@@ -317,7 +317,7 @@ The **Semantic Embedding Atlas** (`/map` endpoint & `rag-ui/src/pages/KnowledgeM
 
 ## 🔄 Document Version Comparison & Change Detection
 
-Engineering manuals evolve over equipment lifecycles (*Rev A* ──► *Rev B*). The comparison engine (`backend/comparison.py`) and user interface (`rag-ui/src/pages/Compare.jsx`) identify critical technical changes across manual releases.
+Engineering manuals evolve over equipment lifecycles (*Rev A* ──► *Rev B*). The comparison engine (`backend/comparison.py`) and user interface (`Frontend/src/pages/Compare.jsx`) identify critical technical changes across manual releases.
 
 ```
        Manual Revision A (Baseline)              Manual Revision B (Updated)
@@ -410,7 +410,7 @@ DocuMind AI implements an in-memory dual-mode architecture toggled instantaneous
 
 ### Air-Gapped Vault Transition Animation (Privacy HUD)
 
-Switching between public research mode and classified engineering mode requires absolute operator awareness. DocuMind AI implements an interactive, immersive cybernetic Heads-Up Display (HUD) overlay (`rag-ui/src/components/PrivacyTransitionHUD.jsx`) accompanied by real-time audio telemetry (`rag-ui/src/utils/audioHaptics.js`):
+Switching between public research mode and classified engineering mode requires absolute operator awareness. DocuMind AI implements an interactive, immersive cybernetic Heads-Up Display (HUD) overlay (`Frontend/src/components/PrivacyTransitionHUD.jsx`) accompanied by real-time audio telemetry (`Frontend/src/utils/audioHaptics.js`):
 
 ```
   Normal Mode (Hybrid Active)                   Air-Gapped Private Mode (Isolated)
@@ -820,7 +820,7 @@ DocuMind AI incorporates a domain-specialized rule and neural extraction engine 
   Entities are synthesized into directed semantic triples:
   $$\langle \text{Subject}, \text{Relation}, \text{Object} \rangle \in \mathcal{E} \times \mathcal{R} \times \mathcal{E}$$
   Where $\mathcal{R} = \{\text{HAS\_SPEC}, \text{SHOWN\_IN}, \text{HAS\_WARNING}, \text{MAINTENANCE}, \text{CONNECTS\_TO}, \text{GOVERNED\_BY}\}$.
-  These relationships are rendered dynamically in the **3D Force-Directed Knowledge Graph** (`rag-ui/src/pages/KnowledgeMap.jsx`).
+  These relationships are rendered dynamically in the **3D Force-Directed Knowledge Graph** (`Frontend/src/pages/KnowledgeMap.jsx`).
 
 ---
 
@@ -961,7 +961,7 @@ Interactive Swagger API documentation will be available at `http://localhost:800
 ### 4. Frontend Setup
 Open a separate terminal session:
 ```bash
-cd rag-ui
+cd Frontend
 
 # Install dependencies
 npm install --legacy-peer-deps
@@ -1033,40 +1033,23 @@ ENABLE_TECHNICAL_MODE=true
 
 ```
 DocuMind-AI/
-├── api.py                           # FastAPI application endpoints and lifecycle
+├── api.py                           # Root entrypoint exposing FastAPI app from backend.api
+├── package.json                     # Root task orchestrator (npm run dev:frontend / dev:backend)
 ├── requirements.txt                 # Python dependencies
-├── .env                             # Environment configuration (git-ignored)
+├── .env                             # Environment configuration
 ├── README.md                        # Master repository documentation
 │
-├── docs/
-│   └── DocLens_Technical_Specification_Document.md  # Detailed research whitepaper
-│
-├── backend/
-│   ├── config.py                    # Centralized settings & privacy mode toggle
-│   ├── database.py                  # ChromaDB vector store initialization & queries
-│   ├── models.py                    # Pydantic schemas (Chat, Compare, Graph, Quiz, NLP)
-│   ├── llm.py                       # LangChain chains, prompts, & fallback logic
-│   ├── nlp.py                       # NLP segmentation, intent classifier, NER, & RRF engine
-│   ├── vision.py                    # Diagram analysis & multimodal OCR routines
-│   ├── comparison.py                # Document revision alignment & diff engine
-│   ├── knowledge_graph.py           # Entity extraction & relationship graph engine
-│   ├── ingestion/
-│   │   ├── pdf_processor.py         # PyMuPDF page-aware extraction
-│   │   └── processor.py             # Ingestion orchestration & SSE streaming
-│   └── retrieval/
-│       └── hybrid.py                # Multi-vector intent-classified retriever
-│
-├── rag-ui/                          # Frontend Application (React 19 + Vite)
-│   ├── package.json                 # Node dependencies
+├── Frontend/                        # Frontend Application (React 19 + Vite + Tailwind v4)
+│   ├── package.json                 # Node dependencies & UI scripts
 │   ├── vite.config.js               # Vite bundler configuration
 │   └── src/
 │       ├── App.jsx                  # Main application router and section layout
 │       ├── index.css                # Global styling, Apple SF typography, & keyframe animations
-│       ├── components/
+│       ├── components/              # Modular UI components (Rail, Drawers, Simulators, Modals)
 │       │   ├── Rail.jsx             # Left navigation rail with quick mode toggle
 │       │   ├── Inspector.jsx        # Slide-over citation & page preview drawer
 │       │   ├── ConversationHistoryDrawer.jsx # Multi-session persistent chat history drawer
-│       │   ├── ConversationSummaryModal.jsx  # Executive 3-tier multi-conversation intelligence summarizer
+│       │   ├── ConversationSummaryModal.jsx  # Executive multi-conversation intelligence summarizer
 │       │   ├── PrivacyTransitionHUD.jsx      # Air-gapped vault cybersecurity transition HUD modal
 │       │   ├── CinematicFX.jsx      # Ambient visual noise & background cinematics
 │       │   ├── ParticleNeuralGlobe.jsx       # Three.js interactive neural particle canvas
@@ -1076,12 +1059,12 @@ DocuMind-AI/
 │       │   ├── CommandPalette.jsx   # ⌘K quick launcher and navigation
 │       │   └── ThemeSettings.jsx    # Settings drawer with privacy engine controls
 │       ├── utils/
-│       │   ├── chatSessionStore.js  # LocalStorage multi-session persistence & analytics engine
+│       │   ├── chatSessionStore.js  # Multi-session persistence & document-centric memory
 │       │   └── audioHaptics.js      # Synthesized Web Audio API sound telemetry
 │       ├── pages/
 │       │   ├── Landing.jsx          # Interactive hero landing page
-│       │   ├── Chat.jsx             # Streaming conversation with citation chips
-│       │   ├── Library.jsx          # Document management & multimodal upload
+│       │   ├── Chat.jsx             # Streaming conversation with citation chips & document memory
+│       │   ├── Library.jsx          # Dual-mode Document Library (Public Repository vs Private Vault)
 │       │   ├── Compare.jsx          # Side-by-side document revision diff UI
 │       │   ├── KnowledgeMap.jsx     # 3D Knowledge Graph & Embedding Atlas (Three.js)
 │       │   └── StudyMode.jsx        # Quiz and flashcard practice interface
@@ -1089,10 +1072,37 @@ DocuMind-AI/
 │           ├── UIContext.jsx        # Inspector & privacy mode state provider
 │           └── ThemeContext.jsx     # Theme mode and accent color state provider
 │
-└── data/                            # Local storage (created automatically)
-    ├── chroma_db/                   # Persistent ChromaDB vector database
-    ├── page_images/                 # Rendered page images for citation inspection
-    └── extracted_images/            # High-resolution crops of figures & tables
+├── backend/                         # Backend Application (FastAPI + LangChain + ChromaDB)
+│   ├── api.py                       # Complete FastAPI endpoints, SSE streaming, & lifecycle
+│   ├── config.py                    # Centralized settings & privacy mode toggle
+│   ├── database.py                  # ChromaDB vector store initialization & queries
+│   ├── models.py                    # Pydantic schemas (Chat, Compare, Graph, Quiz, Privacy)
+│   ├── llm.py                       # Ollama local inference + fallback chains
+│   ├── nlp.py                       # NLP segmentation, intent classifier, NER, & RRF engine
+│   ├── vision.py                    # Diagram analysis & multimodal OCR routines
+│   ├── comparison.py                # Document revision alignment & diff engine
+│   ├── knowledge_graph.py           # Entity extraction & relationship graph engine
+│   ├── privacy_manager.py           # Manifest for file privacy mode gating (.file_privacy.json)
+│   ├── conversation_manager.py      # Document-centric conversation history (.document_conversations.json)
+│   ├── ingestion/
+│   │   ├── multimodal_extractor.py  # PyMuPDF page-aware extraction
+│   │   ├── table_extractor.py       # High-fidelity table grid parser
+│   │   ├── visual_pipeline.py       # High-resolution page rendering
+│   │   └── page_tracker.py          # Coordinate & bbox mapping
+│   └── retrieval/
+│       ├── hybrid.py                # Multi-vector intent-classified retriever + mode filter
+│       ├── reranker.py              # Cross-encoder dense reranking
+│       └── fusion.py                # Reciprocal rank fusion (RRF)
+│
+├── data/                            # Local Data Store & Persistence
+│   ├── .file_privacy.json           # File privacy access mode manifest (Normal vs Private)
+│   ├── .document_conversations.json # Document-centric questions and answers memory store
+│   ├── chroma_db/                   # Persistent ChromaDB vector database
+│   ├── page_images/                 # Rendered page images for citation inspection
+│   └── extracted_images/            # High-resolution crops of figures & tables
+│
+└── docs/
+    └── DocLens_Technical_Specification_Document.md  # Detailed research whitepaper
 ```
 
 ---

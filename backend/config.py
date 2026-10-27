@@ -35,8 +35,6 @@ ENABLE_DIAGRAM_ANALYSIS = os.environ.get("ENABLE_DIAGRAM_ANALYSIS", "true").lowe
 ENABLE_TECHNICAL_MODE = os.environ.get("ENABLE_TECHNICAL_MODE", "true").lower() == "true"
 
 # ── API Keys ──
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_SECRET_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
@@ -46,8 +44,9 @@ EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-M
 VISION_MODEL = os.environ.get("VISION_MODEL", "moondream:latest")
 VISUAL_EMBEDDING_MODEL = os.environ.get("VISUAL_EMBEDDING_MODEL", "clip-ViT-B-32")
 LLM_PRIMARY = os.environ.get("LLM_PRIMARY", "llama3.2:latest")
-LLM_FALLBACK_1 = os.environ.get("LLM_FALLBACK_1", "qwen/qwen3.8-27b")
-LLM_FALLBACK_2 = os.environ.get("LLM_FALLBACK_2", "openai/gpt-4o-mini")
+LLM_FALLBACK_1 = os.environ.get("LLM_FALLBACK_1", "openai/gpt-oss-120b")
+LLM_FALLBACK_2 = os.environ.get("LLM_FALLBACK_2", "openai/gpt-oss-20b")
+USE_ONLY_OLLAMA = os.environ.get("USE_ONLY_OLLAMA", "true").lower() == "true"
 
 # ── ChromaDB Configuration ──
 CHROMA_DB_DIR = os.path.join(DATA_DIR, "chroma_db")

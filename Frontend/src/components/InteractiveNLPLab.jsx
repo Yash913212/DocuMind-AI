@@ -40,6 +40,7 @@ const PRESET_QUERIES = [
 ];
 
 export function InteractiveNLPLab({ onLaunchChat }) {
+  const [documents, setDocuments] = useState([]);
   const [inputText, setInputText] = useState(PRESET_QUERIES[0].text);
   const [activeTab, setActiveTab] = useState("tokens"); // 'tokens' | 'intent' | 'ner' | 'embeddings' | 'fusion'
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,28 @@ export function InteractiveNLPLab({ onLaunchChat }) {
   const [selectedToken, setSelectedToken] = useState(null);
   const [rrfK, setRrfK] = useState(60);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/documents`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((docs) => setDocuments(docs))
+      .catch(() => {});
+  }, []);
+
+  const queries = useMemo(() => {
+    if (documents && documents.length > 0) {
+      const docName = documents[0].name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+      return [
+        {
+          id: "library-doc",
+          title: `${docName} (Indexed)`,
+          text: `Verify technical requirements, component parameters, and safety limits in ${docName}`,
+        },
+        ...PRESET_QUERIES,
+      ];
+    }
+    return PRESET_QUERIES;
+  }, [documents]);
 
   const runAnalysis = async (textToAnalyze) => {
     const text = textToAnalyze || inputText;
@@ -173,7 +196,7 @@ export function InteractiveNLPLab({ onLaunchChat }) {
           <span>Select Verified Engineering Query:</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          {PRESET_QUERIES.map((preset) => (
+          {queries.map((preset) => (
             <button
               key={preset.id}
               onClick={() => handleSelectPreset(preset)}
