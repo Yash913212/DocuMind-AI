@@ -17,8 +17,7 @@ import { useUI } from "../context/UIContext";
 import { API_BASE } from "../config";
 
 export function Compare() {
-  const { openInspector } = useUI();
-  const [documents, setDocuments] = useState([]);
+  const { openInspector, documents } = useUI();
   const [docA, setDocA] = useState("");
   const [docB, setDocB] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,28 +25,15 @@ export function Compare() {
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");
 
-  const fetchDocuments = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/documents`);
-      if (res.ok) {
-        const data = await res.json();
-        setDocuments(data);
-        if (data.length >= 2) {
-          setDocA(data[0].name);
-          setDocB(data[1].name);
-        } else if (data.length === 1) {
-          setDocA(data[0].name);
-          setDocB(data[0].name);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch documents for comparison", err);
-    }
-  };
-
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (documents.length >= 2 && !docA && !docB) {
+      setDocA(documents[0].name);
+      setDocB(documents[1].name);
+    } else if (documents.length === 1 && !docA) {
+      setDocA(documents[0].name);
+      setDocB(documents[0].name);
+    }
+  }, [documents, docA, docB]);
 
   const handleCompare = async () => {
     if (!docA || !docB) {

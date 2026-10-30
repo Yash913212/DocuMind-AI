@@ -148,7 +148,7 @@ export function ParticleNeuralGlobe() {
     <div ref={containerRef} className="w-full h-full relative cursor-grab active:cursor-grabbing select-none">
       <Canvas
         camera={{ position: [0, 0, 5.2], fov: 48 }}
-        dpr={[1, 1.5]}
+        dpr={[1, Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 1.5)]}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         frameloop={isVisible ? "always" : "never"}
       >

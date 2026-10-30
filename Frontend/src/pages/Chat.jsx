@@ -87,26 +87,33 @@ function CompassSpinner({ isSpinning }) {
 }
 
 export function Chat() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [activeDocument, setActiveDocument] = useState("ALL");
-  const [allDocuments, setAllDocuments] = useState([]);
-  const [uploadProgress, setUploadProgress] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [technicalMode, setTechnicalMode] = useState(true); // Default to technical mode
-  const { openInspector, privacyMode, setPrivacyMode } = useUI();
+  const { openInspector, privacyMode, setPrivacyMode, documents: allDocuments, refreshDocuments } = useUI();
   const reduceMotion = useReducedMotion();
   const scrollContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const dragCounter = useRef(0);
+  const prevPrivacyModeRef = useRef(privacyMode);
 
-  // Multi-session state management
+  // Multi-session state management initialized lazily without cascading re-renders
   const [sessions, setSessions] = useState(() => getStoredSessions());
-  const [currentSessionId, setCurrentSessionId] = useState(() => getActiveSessionId());
+  const initialActive = useMemo(() => {
+    const stored = getStoredSessions();
+    const activeId = getActiveSessionId();
+    return stored.find((s) => s.id === activeId) || stored[0] || null;
+  }, []);
+
+  const [currentSessionId, setCurrentSessionId] = useState(() => initialActive?.id || getActiveSessionId());
+  const [messages, setMessages] = useState(() => initialActive?.messages || []);
+  const [activeDocument, setActiveDocument] = useState(() => initialActive?.document || "ALL");
+  const [technicalMode, setTechnicalMode] = useState(() => initialActive?.technicalMode !== undefined ? initialActive.technicalMode : true);
+
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
@@ -184,29 +191,8 @@ export function Chat() {
     }
   };
 
-  // Initialize and sync sessions from localStorage
+  // Sync sessions when updated from other tabs / components
   useEffect(() => {
-    const stored = getStoredSessions();
-    setSessions(stored);
-
-    const activeId = getActiveSessionId();
-    const active = stored.find((s) => s.id === activeId) || stored[0];
-
-    if (active) {
-      setCurrentSessionId(active.id);
-      setActiveSessionId(active.id);
-      setMessages(active.messages || []);
-      if (active.document) setActiveDocument(active.document);
-      if (active.technicalMode !== undefined) setTechnicalMode(active.technicalMode);
-    } else {
-      const fresh = createNewSession({
-        document: activeDocument,
-        technicalMode,
-      });
-      setCurrentSessionId(fresh.id);
-      setSessions([fresh]);
-    }
-
     const handleSessionsChanged = (e) => {
       if (e.detail?.sessions) {
         setSessions(e.detail.sessions);
@@ -317,8 +303,6 @@ export function Chat() {
     };
   }, [privacyMode, setPrivacyMode]);
 
-  const prevPrivacyModeRef = useRef(privacyMode);
-
   const handleNewChat = (modeOverride = null, isModeSwitch = false) => {
     const currentMode = modeOverride || privacyMode;
     const isPrivate = currentMode === "private";
@@ -387,11 +371,10 @@ export function Chat() {
     }
   };
 
-  // Always start a new chat and reload documents when entering/leaving Private Mode
+  // Always start a new chat when entering/leaving Private Mode
   useEffect(() => {
     if (prevPrivacyModeRef.current !== privacyMode) {
       prevPrivacyModeRef.current = privacyMode;
-      fetchDocuments(privacyMode);
       handleNewChat(privacyMode, true);
     }
   }, [privacyMode]);
@@ -430,27 +413,6 @@ export function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
-
-  const fetchDocuments = async (modeOverride = null) => {
-    try {
-      const targetMode = modeOverride || privacyMode;
-      const res = await fetch(`${API_BASE}/documents?mode=${targetMode}`);
-      if (res.ok) {
-        const docs = await res.json();
-        docs.sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
-        setAllDocuments(docs);
-        if (activeDocument !== "ALL" && !docs.some((d) => d.name === activeDocument)) {
-          setActiveDocument("ALL");
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load documents", e);
-    }
-  };
-
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
 
   const handleDragEnter = (e) => {
     e.preventDefault();
@@ -520,7 +482,7 @@ export function Chat() {
                     percent: data.percent,
                   });
                 } else if (data.type === "done") {
-                  fetchDocuments();
+                  refreshDocuments();
                   setActiveDocument(file.name);
                   const uploadGreeting = {
                     role: "assistant",
@@ -572,7 +534,7 @@ export function Chat() {
       });
       if (res.ok) {
         if (activeDocument === docName) setActiveDocument("ALL");
-        fetchDocuments();
+        refreshDocuments();
       } else {
         alert("Failed to delete document");
       }

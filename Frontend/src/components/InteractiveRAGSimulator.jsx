@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { API_BASE } from "../config";
+import { useUI } from "../context/UIContext";
 
 const TYPE_META = {
   text: { label: "Text", icon: FileText, color: "text-[#c0c0c0]" },
@@ -23,7 +24,7 @@ const TYPE_META = {
 };
 
 export function InteractiveRAGSimulator({ onLaunchChat }) {
-  const [documents, setDocuments] = useState([]);
+  const { documents } = useUI();
   const [documentFilter, setDocumentFilter] = useState("ALL");
   const [query, setQuery] = useState("What are the key specifications?");
   const [results, setResults] = useState([]);
@@ -47,19 +48,6 @@ export function InteractiveRAGSimulator({ onLaunchChat }) {
       "Explain the system architecture and component connections",
     ];
   }, [documents]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${API_BASE}/documents`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (!cancelled) setDocuments(data);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const runRetrieval = async () => {
     if (!query.trim()) return;

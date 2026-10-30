@@ -15,6 +15,7 @@ import {
   AlignLeft,
 } from "lucide-react";
 import { API_BASE } from "../config";
+import { useUI } from "../context/UIContext";
 
 const PRESET_QUERIES = [
   {
@@ -40,7 +41,7 @@ const PRESET_QUERIES = [
 ];
 
 export function InteractiveNLPLab({ onLaunchChat }) {
-  const [documents, setDocuments] = useState([]);
+  const { documents } = useUI();
   const [inputText, setInputText] = useState(PRESET_QUERIES[0].text);
   const [activeTab, setActiveTab] = useState("tokens"); // 'tokens' | 'intent' | 'ner' | 'embeddings' | 'fusion'
   const [loading, setLoading] = useState(false);
@@ -48,13 +49,6 @@ export function InteractiveNLPLab({ onLaunchChat }) {
   const [selectedToken, setSelectedToken] = useState(null);
   const [rrfK, setRrfK] = useState(60);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/documents`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((docs) => setDocuments(docs))
-      .catch(() => {});
-  }, []);
 
   const queries = useMemo(() => {
     if (documents && documents.length > 0) {

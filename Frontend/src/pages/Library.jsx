@@ -196,7 +196,6 @@ function FileCard({ file, onDelete, onInfo, onTogglePrivacy, activeMode }) {
 }
 
 export function Library() {
-  const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [selectedDocInfo, setSelectedDocInfo] = useState(null);
@@ -204,56 +203,29 @@ export function Library() {
   const [isInfoLoading, setIsInfoLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const { privacyMode, setPrivacyMode } = useUI();
+  const { privacyMode, setPrivacyMode, documents: files, refreshDocuments } = useUI();
 
   const fileInputRef = useRef(null);
-
-  const fetchDocuments = async (modeOverride = null) => {
-    try {
-      const targetMode = modeOverride || privacyMode;
-      const res = await fetch(`${API_BASE}/documents?mode=${targetMode}`);
-      if (res.ok) {
-        const data = await res.json();
-        setFiles(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch documents", e);
-    }
-  };
-
-  useEffect(() => {
-    fetchDocuments(privacyMode);
-  }, [privacyMode]);
-
-  useEffect(() => {
-    const handleUpdate = () => fetchDocuments(privacyMode);
-    window.addEventListener("documentUpdated", handleUpdate);
-    return () => window.removeEventListener("documentUpdated", handleUpdate);
-  }, [privacyMode]);
 
   const handleInfo = async (name) => {
     setIsInfoLoading(true);
     setDocConversations([]);
     try {
-      const res = await fetch(`${API_BASE}/documents?mode=${privacyMode}`);
-      if (res.ok) {
-        const data = await res.json();
-        const found = data.find((d) => d.name === name);
-        if (found) {
-          setSelectedDocInfo(found);
-          // Fetch past questions/conversations recorded for this document
-          try {
-            const convRes = await fetch(`${API_BASE}/documents/${encodeURIComponent(name)}/conversations`);
-            if (convRes.ok) {
-              const convData = await convRes.json();
-              setDocConversations(convData);
-            }
-          } catch (cErr) {
-            console.warn("Could not load document conversations", cErr);
+      const found = files.find((d) => d.name === name);
+      if (found) {
+        setSelectedDocInfo(found);
+        // Fetch past questions/conversations recorded for this document
+        try {
+          const convRes = await fetch(`${API_BASE}/documents/${encodeURIComponent(name)}/conversations`);
+          if (convRes.ok) {
+            const convData = await convRes.json();
+            setDocConversations(convData);
           }
-        } else {
-          toast.error("Document details not found");
+        } catch (cErr) {
+          console.warn("Could not load document conversations", cErr);
         }
+      } else {
+        toast.error("Document details not found");
       }
     } catch (err) {
       console.error(err);
@@ -276,7 +248,7 @@ export function Library() {
             ? `🔒 "${filename}" moved to Private Vault`
             : `🌐 "${filename}" moved to Public Repository`
         );
-        fetchDocuments(privacyMode);
+        refreshDocuments(privacyMode);
         window.dispatchEvent(new Event("documentUpdated"));
       } else {
         toast.error("Failed to update document privacy mode");
@@ -296,7 +268,7 @@ export function Library() {
       });
       if (res.ok) {
         toast.success(`Deleted ${filename}`);
-        setFiles(files.filter((f) => f.name !== filename));
+        refreshDocuments(privacyMode);
         window.dispatchEvent(new Event("documentUpdated"));
       } else {
         toast.error("Failed to delete document");
@@ -347,7 +319,7 @@ export function Library() {
                 } else if (data.type === "done") {
                   setUploadProgress(null);
                   toast.success(`Indexed ${data.filename} (${data.chunks_added} chunks) in ${privacyMode === "private" ? "Private Vault" : "Public Repository"}`);
-                  fetchDocuments(privacyMode);
+                  refreshDocuments(privacyMode);
                   window.dispatchEvent(new Event("documentUpdated"));
                 } else if (data.type === "error") {
                   setUploadProgress(null);

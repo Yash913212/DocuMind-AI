@@ -8,9 +8,10 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { API_BASE } from "../config";
+import { useUI } from "../context/UIContext";
 
 export function InteractiveRevisionDiffPreview({ onOpenCompare }) {
-  const [documents, setDocuments] = useState([]);
+  const { documents } = useUI();
   const [docA, setDocA] = useState("");
   const [docB, setDocB] = useState("");
   const [result, setResult] = useState(null);
@@ -18,22 +19,14 @@ export function InteractiveRevisionDiffPreview({ onOpenCompare }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch(`${API_BASE}/documents`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (cancelled) return;
-        setDocuments(data);
-        if (data.length >= 2) {
-          setDocA(data[0].name);
-          setDocB(data[1].name);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (documents.length >= 2) {
+      setDocA(documents[0].name);
+      setDocB(documents[1].name);
+    } else if (documents.length === 1) {
+      setDocA(documents[0].name);
+      setDocB(documents[0].name);
+    }
+  }, [documents]);
 
   const runComparison = async () => {
     if (!docA || !docB) return;

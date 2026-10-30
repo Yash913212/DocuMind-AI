@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Rail } from "./components/Rail";
-import { Landing } from "./pages/Landing";
-import { Chat } from "./pages/Chat";
-import { Library } from "./pages/Library";
-import { Compare } from "./pages/Compare";
-import { KnowledgeMap } from "./pages/KnowledgeMap";
-import { StudyMode } from "./pages/StudyMode";
 import { Inspector } from "./components/Inspector";
 import { CommandPalette } from "./components/CommandPalette";
 import { UIProvider, useUI } from "./context/UIContext";
@@ -16,6 +10,13 @@ import { Toaster } from "react-hot-toast";
 import { CinematicLayer } from "./components/CinematicFX";
 import { PrivacyTransitionHUD } from "./components/PrivacyTransitionHUD";
 import { ThemeTransitionOverlay } from "./components/ThemeTransitionOverlay";
+
+const Landing = lazy(() => import("./pages/Landing").then((m) => ({ default: m.Landing })));
+const Chat = lazy(() => import("./pages/Chat").then((m) => ({ default: m.Chat })));
+const Library = lazy(() => import("./pages/Library").then((m) => ({ default: m.Library })));
+const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
+const KnowledgeMap = lazy(() => import("./pages/KnowledgeMap").then((m) => ({ default: m.KnowledgeMap })));
+const StudyMode = lazy(() => import("./pages/StudyMode").then((m) => ({ default: m.StudyMode })));
 
 const VALID_VIEWS = ["home", "chat", "library", "compare", "map", "study"];
 
@@ -66,22 +67,20 @@ function AppContent() {
   const pageVariants = reduceMotion
     ? {
         initial: { opacity: 0 },
-        animate: { opacity: 1, transition: { duration: 0.15 } },
-        exit: { opacity: 0, transition: { duration: 0.1 } },
+        animate: { opacity: 1, transition: { duration: 0.12 } },
+        exit: { opacity: 0, transition: { duration: 0.08 } },
       }
     : {
-        initial: { opacity: 0, y: 12, scale: 0.998 },
+        initial: { opacity: 0, y: 6 },
         animate: {
           opacity: 1,
           y: 0,
-          scale: 1,
-          transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+          transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
         },
         exit: {
           opacity: 0,
-          y: -8,
-          scale: 1,
-          transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
+          y: -4,
+          transition: { duration: 0.1, ease: "easeOut" },
         },
       };
 
@@ -97,23 +96,33 @@ function AppContent() {
         <AnimatePresence>
           <motion.div
             key={`page-sweep-${activeView}`}
-            className="pointer-events-none absolute inset-x-0 top-0 z-[45] h-px origin-left bg-gradient-to-r from-transparent via-brass to-transparent"
+            className="pointer-events-none absolute inset-x-0 top-0 z-[45] h-0.5 origin-left bg-gradient-to-r from-transparent via-brass to-transparent transform-gpu"
             initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: 1, opacity: [0, 0.95, 0] }}
-            transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}
+            animate={{ scaleX: 1, opacity: [0, 1, 0] }}
+            transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
           />
         </AnimatePresence>
 
-        <AnimatePresence mode="wait">
-          {activeView === "home" && (
-            <motion.div
-              key="home"
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="h-full w-full overflow-hidden"
-            >
+        <Suspense
+          fallback={
+            <div className="h-full w-full flex items-center justify-center bg-ink">
+              <div className="flex flex-col items-center gap-3 select-none">
+                <div className="w-7 h-7 rounded-full border-2 border-brass/20 border-t-brass animate-spin" />
+                <span className="text-[11px] font-data-mono text-fog uppercase tracking-wider animate-pulse">Loading View...</span>
+              </div>
+            </div>
+          }
+        >
+          <AnimatePresence mode="wait">
+            {activeView === "home" && (
+              <motion.div
+                key="home"
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="h-full w-full overflow-hidden transform-gpu"
+              >
               <Landing
                 onNavigate={navigateTo}
                 onOpenCommandPalette={() => setCommandPaletteOpen(true)}
@@ -128,7 +137,7 @@ function AppContent() {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="h-full w-full overflow-hidden"
+              className="h-full w-full overflow-hidden transform-gpu"
             >
               <Chat />
             </motion.div>
@@ -141,7 +150,7 @@ function AppContent() {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="h-full w-full overflow-hidden"
+              className="h-full w-full overflow-hidden transform-gpu"
             >
               <Library onNavigateToChat={() => navigateTo("chat")} />
             </motion.div>
@@ -154,7 +163,7 @@ function AppContent() {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="h-full w-full overflow-hidden"
+              className="h-full w-full overflow-hidden transform-gpu"
             >
               <Compare />
             </motion.div>
@@ -167,7 +176,7 @@ function AppContent() {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="h-full w-full overflow-hidden"
+              className="h-full w-full overflow-hidden transform-gpu"
             >
               <KnowledgeMap />
             </motion.div>
@@ -180,12 +189,13 @@ function AppContent() {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="h-full w-full overflow-hidden"
+              className="h-full w-full overflow-hidden transform-gpu"
             >
               <StudyMode />
             </motion.div>
           )}
         </AnimatePresence>
+      </Suspense>
       </main>
 
       <CinematicLayer />

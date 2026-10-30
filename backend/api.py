@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Union
@@ -275,6 +276,7 @@ async def clear_db():
                         os.remove(fp)
 
         clear_knowledge_graph_cache()
+        invalidate_documents_cache()
         return {"status": "cleared"}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
@@ -582,6 +584,7 @@ async def upload_file(file: UploadFile = File(...)):
             set_file_privacy(filename, current_mode)
             async for event in process_document(file_path, filename, upload_lock):
                 yield event
+            invalidate_documents_cache()
 
         except HTTPException as exc:
             if os.path.exists(file_path):
@@ -602,10 +605,20 @@ class DocumentPrivacyUpdate(BaseModel):
     privacy_mode: str  # "private" or "normal"
 
 
+# ── Documents List Cache for fast UI responsiveness ──
+_DOCUMENTS_CACHE = {}  # {mode: (timestamp, result_list)}
+_DOCUMENTS_CACHE_TTL = 4.0  # seconds
+
+def invalidate_documents_cache():
+    global _DOCUMENTS_CACHE
+    _DOCUMENTS_CACHE.clear()
+
+
 @app.post("/documents/{name}/privacy")
 async def update_document_privacy(name: str, req: DocumentPrivacyUpdate):
     safe_name = secure_filename(name)
     mode = set_file_privacy(safe_name, req.privacy_mode)
+    invalidate_documents_cache()
     return {"name": safe_name, "privacy_mode": mode}
 
 
@@ -614,6 +627,14 @@ async def list_documents(mode: Optional[str] = None):
     """List documents with enhanced multimodal metadata, filtered by active privacy mode."""
     await ensure_rag_ready()
     active_mode = mode or get_privacy_mode()
+
+    # Check fast memory cache
+    now = time.time()
+    if active_mode in _DOCUMENTS_CACHE:
+        cached_time, cached_data = _DOCUMENTS_CACHE[active_mode]
+        if now - cached_time < _DOCUMENTS_CACHE_TTL:
+            return cached_data
+
     metadatas = db_manager.get_all_documents_metadata()
 
     docs = {}
@@ -693,7 +714,9 @@ async def list_documents(mode: Optional[str] = None):
             ).isoformat()
             info["type"] = os.path.splitext(name)[1].lower()
 
-    return list(docs.values())
+    result = list(docs.values())
+    _DOCUMENTS_CACHE[active_mode] = (now, result)
+    return result
 
 
 @app.get("/documents/{name}/conversations")
@@ -747,6 +770,7 @@ async def delete_document(name: str):
                         os.remove(fp)
 
     clear_knowledge_graph_cache()
+    invalidate_documents_cache()
     return {"status": "success", "deleted": name, "chunks_deleted": deleted}
 
 

@@ -82,33 +82,19 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
     damping: 30,
     restDelta: 0.001,
   });
-  const { privacyMode, setPrivacyMode } = useUI();
+  const { privacyMode, setPrivacyMode, documents } = useUI();
   const { themeMode, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const workspaceDropdownRef = useRef(null);
 
-  const [libraryStats, setLibraryStats] = useState({
-    documents: 0,
-    pages: 0,
-    chunks: 0,
-    tables: 0,
-  });
-
-  useEffect(() => {
-    fetch(`${API_BASE}/documents`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        setLibraryStats({
-          documents: data.length,
-          pages: data.reduce((sum, doc) => sum + (doc.pages || 0), 0),
-          chunks: data.reduce((sum, doc) => sum + (doc.chunks || 0), 0),
-          tables: data.reduce((sum, doc) => sum + (doc.tables || 0), 0),
-        });
-      })
-      .catch(() => {});
-  }, []);
+  const libraryStats = React.useMemo(() => ({
+    documents: documents.length,
+    pages: documents.reduce((sum, doc) => sum + (doc.pages || 0), 0),
+    chunks: documents.reduce((sum, doc) => sum + (doc.chunks || 0), 0),
+    tables: documents.reduce((sum, doc) => sum + (doc.tables || 0), 0),
+  }), [documents]);
 
   // Close workspace dropdown on outside click
   useEffect(() => {
@@ -860,7 +846,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
         </Reveal>
 
         {/* Live Interactive Simulator Showcase Section */}
-        <section id="simulator" className="space-y-6 pt-4 scroll-mt-24">
+        <section id="simulator" className="space-y-6 pt-4 scroll-mt-24 contain-content">
           <Reveal>
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brass/10 border border-brass/30 text-[11px] font-data-mono text-brass">
@@ -884,7 +870,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
         </section>
 
         {/* Live Interactive NLP Intelligence Lab Section */}
-        <section id="nlp-lab" className="space-y-6 pt-4 scroll-mt-24">
+        <section id="nlp-lab" className="space-y-6 pt-4 scroll-mt-24 contain-content">
           <Reveal>
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brass/15 border border-brass/35 text-[11px] font-data-mono text-brass uppercase tracking-wider">
@@ -908,7 +894,7 @@ export function Landing({ onNavigate, onOpenCommandPalette }) {
         </section>
 
         {/* Bento Grid Feature Capabilities Section */}
-        <section id="features" className="space-y-8 pt-4 scroll-mt-24">
+        <section id="features" className="space-y-8 pt-4 scroll-mt-24 contain-content">
           <Reveal>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>

@@ -19,21 +19,8 @@ import { API_BASE } from "../config";
 
 export function Rail({ activeView, onNavigate, onOpenCommandPalette }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [docCount, setDocCount] = useState(0);
-  const { privacyMode, setPrivacyMode } = useUI();
-
-  const fetchDocCount = () => {
-    fetch(`${API_BASE}/documents`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setDocCount(data.length))
-      .catch(() => {});
-  };
-
-  useEffect(() => {
-    fetchDocCount();
-    window.addEventListener("documentUpdated", fetchDocCount);
-    return () => window.removeEventListener("documentUpdated", fetchDocCount);
-  }, []);
+  const { privacyMode, setPrivacyMode, documents } = useUI();
+  const docCount = documents.length;
 
   const links = [
     { id: "home", icon: Compass, label: "Home / Overview" },

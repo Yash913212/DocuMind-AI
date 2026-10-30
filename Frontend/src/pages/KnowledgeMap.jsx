@@ -167,48 +167,58 @@ function EmbeddingScene({
       />
       <EffectComposer disableNormalPass>
         <Bloom
-          luminanceThreshold={0.1}
-          luminanceSmoothing={0.9}
-          intensity={1.5}
-          mipmapBlur
+          luminanceThreshold={0.2}
+          luminanceSmoothing={0.8}
+          intensity={0.9}
         />
       </EffectComposer>
     </>
   );
 }
 
-// ── 3D Knowledge Graph Components ──
-
 function GraphEdgeLines({ edges, nodeMap, selectedNodeId }) {
   const lineGeometry = useMemo(() => {
-    const points = [];
-    const colors = [];
+    let validCount = 0;
+    edges.forEach((edge) => {
+      if (nodeMap[edge.source] && nodeMap[edge.target]) validCount++;
+    });
+
+    const positions = new Float32Array(validCount * 6);
+    const colors = new Float32Array(validCount * 6);
+    let pIdx = 0;
+    let cIdx = 0;
+
+    const connectedColor = new THREE.Color("#e10600");
+    const normalColor = new THREE.Color("#4a4a4a");
 
     edges.forEach((edge) => {
       const src = nodeMap[edge.source];
       const tgt = nodeMap[edge.target];
       if (src && tgt) {
-        points.push(new THREE.Vector3(src.x, src.y, src.z));
-        points.push(new THREE.Vector3(tgt.x, tgt.y, tgt.z));
+        positions[pIdx++] = src.x;
+        positions[pIdx++] = src.y;
+        positions[pIdx++] = src.z;
+        positions[pIdx++] = tgt.x;
+        positions[pIdx++] = tgt.y;
+        positions[pIdx++] = tgt.z;
 
         const isConnected =
           selectedNodeId &&
           (edge.source === selectedNodeId || edge.target === selectedNodeId);
+        const col = isConnected ? connectedColor : normalColor;
 
-        const edgeColor = isConnected
-          ? new THREE.Color("#e10600")
-          : new THREE.Color("#4a4a4a");
-
-        colors.push(edgeColor.r, edgeColor.g, edgeColor.b);
-        colors.push(edgeColor.r, edgeColor.g, edgeColor.b);
+        colors[cIdx++] = col.r;
+        colors[cIdx++] = col.g;
+        colors[cIdx++] = col.b;
+        colors[cIdx++] = col.r;
+        colors[cIdx++] = col.g;
+        colors[cIdx++] = col.b;
       }
     });
 
-    const geom = new THREE.BufferGeometry().setFromPoints(points);
-    geom.setAttribute(
-      "color",
-      new THREE.Float32BufferAttribute(colors, 3)
-    );
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     return geom;
   }, [edges, nodeMap, selectedNodeId]);
 
@@ -251,7 +261,7 @@ function GraphNodeSphere({
         }}
         onPointerOut={() => onHover(null)}
       >
-        <sphereGeometry args={[config.radius, 20, 20]} />
+        <sphereGeometry args={[config.radius, 14, 14]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
@@ -339,10 +349,9 @@ function KnowledgeGraphScene({
 
       <EffectComposer disableNormalPass>
         <Bloom
-          luminanceThreshold={0.2}
-          luminanceSmoothing={0.9}
-          intensity={1.2}
-          mipmapBlur
+          luminanceThreshold={0.25}
+          luminanceSmoothing={0.8}
+          intensity={0.8}
         />
       </EffectComposer>
     </>
@@ -788,7 +797,8 @@ export function KnowledgeMap() {
                 camera={{ position: [0, 0, 3] }}
                 onPointerMissed={() => setIsMapActive(false)}
                 frameloop={isInView ? "always" : "demand"}
-                dpr={[1, 1.5]}
+                gl={{ powerPreference: "high-performance", antialias: true }}
+                dpr={[1, Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 1.5)]}
               >
                 {viewMode === "graph" ? (
                   <KnowledgeGraphScene

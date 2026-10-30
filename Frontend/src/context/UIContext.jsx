@@ -12,15 +12,44 @@ export function UIProvider({ children }) {
   const [modeTransition, setModeTransition] = useState(null);
   const transitionTimerRef = useRef(null);
 
+  const [documents, setDocuments] = useState([]);
+  const [isDocsLoading, setIsDocsLoading] = useState(false);
+
+  const fetchDocuments = async (targetMode = null) => {
+    const mode = targetMode || privacyMode;
+    setIsDocsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/documents?mode=${mode}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDocuments(data);
+      }
+    } catch (err) {
+      console.warn("Failed to load documents:", err);
+    } finally {
+      setIsDocsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetch(`${API_BASE}/mode`)
       .then((res) => res.json())
       .then((data) => {
         if (data && data.mode) {
           setPrivacyModeState(data.mode);
+          fetchDocuments(data.mode);
+        } else {
+          fetchDocuments("normal");
         }
       })
-      .catch((err) => console.warn("Failed to fetch privacy mode:", err));
+      .catch((err) => {
+        console.warn("Failed to fetch privacy mode:", err);
+        fetchDocuments("normal");
+      });
+
+    const handleDocUpdate = () => fetchDocuments();
+    window.addEventListener("documentUpdated", handleDocUpdate);
+    return () => window.removeEventListener("documentUpdated", handleDocUpdate);
   }, []);
 
   const dismissModeTransition = () => {
@@ -58,6 +87,9 @@ export function UIProvider({ children }) {
       setModeTransition(null);
       transitionTimerRef.current = null;
     }, 2400);
+
+    // Eagerly refresh documents for target mode
+    fetchDocuments(mode);
 
     try {
       const res = await fetch(`${API_BASE}/mode`, {
@@ -102,6 +134,9 @@ export function UIProvider({ children }) {
         isModeLoading,
         modeTransition,
         dismissModeTransition,
+        documents,
+        isDocsLoading,
+        refreshDocuments: fetchDocuments,
       }}
     >
       {children}

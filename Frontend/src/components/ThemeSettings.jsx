@@ -7,21 +7,16 @@ import { API_BASE } from "../config";
 
 export function ThemeSettings({ isOpen, onClose }) {
   const { themeMode, triggerThemeTransition, accent, setAccent } = useTheme();
-  const { privacyMode, setPrivacyMode, isModeLoading } = useUI();
-  const [stats, setStats] = useState({ docs: 0, chunks: 0 });
+  const { privacyMode, setPrivacyMode, isModeLoading, documents } = useUI();
   const [vectorBackend, setVectorBackend] = useState("supabase");
 
-  useEffect(() => {
-    const fetchStats = () => {
-      fetch(`${API_BASE}/documents`)
-        .then(res => res.json())
-        .then(data => {
-          const docs = data.length;
-          const chunks = data.reduce((acc, doc) => acc + doc.chunks, 0);
-          setStats({ docs, chunks });
-        })
-        .catch(console.error);
+  const stats = React.useMemo(() => ({
+    docs: documents.length,
+    chunks: documents.reduce((acc, doc) => acc + (doc.chunks || 0), 0)
+  }), [documents]);
 
+  useEffect(() => {
+    if (isOpen) {
       fetch(`${API_BASE}/system/architecture`)
         .then(res => (res.ok ? res.json() : null))
         .then(arch => {
@@ -30,14 +25,7 @@ export function ThemeSettings({ isOpen, onClose }) {
           }
         })
         .catch(() => {});
-    };
-
-    if (isOpen) {
-      fetchStats();
     }
-    
-    window.addEventListener("documentUpdated", fetchStats);
-    return () => window.removeEventListener("documentUpdated", fetchStats);
   }, [isOpen]);
 
   const accents = [

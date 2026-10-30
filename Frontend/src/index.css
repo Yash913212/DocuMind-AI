@@ -869,3 +869,21 @@
     display: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   GPU COMPOSITOR & HARDWARE ACCELERATION
+   ═══════════════════════════════════════════════════ */
+.transform-gpu {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.will-change-transform {
+  will-change: transform, opacity;
+}
+
+.contain-content {
+  content-visibility: auto;
+  contain-intrinsic-size: 600px;
+}
